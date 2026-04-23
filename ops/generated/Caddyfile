@@ -1,0 +1,12 @@
+{
+  email ops@example.test
+}
+
+meet.example.test {
+  encode gzip zstd
+  reverse_proxy app:3000
+}
+
+rtc.example.test {
+  reverse_proxy livekit:7880
+}

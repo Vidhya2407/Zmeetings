@@ -1,0 +1,56 @@
+groups:
+  - name: zmeetings-go-live
+    rules:
+      - alert: ZMeetingsHostHighCPU
+        expr: (100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))) > 85
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "Host CPU is above 85%"
+          description: "The single-region production host has been above 85% CPU for more than 10 minutes."
+
+      - alert: ZMeetingsHostHighMemory
+        expr: (100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))) > 85
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "Host memory is above 85%"
+          description: "The single-region production host has been above 85% memory utilization for more than 10 minutes."
+
+      - alert: ZMeetingsJoinFailureRateHigh
+        expr: (sum(increase(zmeetings_sfu_join_failures_total{provider="livekit"}[10m])) / clamp_min(sum(increase(zmeetings_sfu_join_attempts_total{provider="livekit"}[10m])), 1)) > 0.05 and sum(increase(zmeetings_sfu_join_attempts_total{provider="livekit"}[10m])) > 10
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "SFU join failure rate is above 5%"
+          description: "More than 5% of LiveKit join attempts have failed over the last 10 minutes."
+
+      - alert: ZMeetingsPacketLossHigh
+        expr: max(zmeetings_sfu_packet_loss_ratio{provider="livekit"}) > 0.03
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "SFU packet loss ratio is above 3%"
+          description: "Client-reported LiveKit packet loss has been above 3% for more than 5 minutes."
+
+      - alert: ZMeetingsAppMetricsDown
+        expr: up{job="zmeetings-app"} == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "App metrics endpoint is down"
+          description: "Prometheus has not been able to scrape the app metrics endpoint for more than 5 minutes."
+
+      - alert: ZMeetingsLiveKitMetricsDown
+        expr: up{job="livekit"} == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "LiveKit metrics endpoint is down"
+          description: "Prometheus has not been able to scrape the LiveKit metrics endpoint for more than 5 minutes."

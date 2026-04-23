@@ -1,0 +1,13 @@
+.git
+.github
+.next
+node_modules
+npm-debug.log*
+playwright-report
+test-results
+*.log
+tmp-*.png
+tmp-*.jpg
+tmp-*.jpeg
+tmp-*.webp
+*.tsbuildinfo

@@ -1,0 +1,165 @@
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: zmeetings-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./ops/generated/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zmeetings-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: https://${APP_DOMAIN}
+      NEXTAUTH_URL: https://${APP_DOMAIN}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/zstream}
+      CACHE_PROVIDER: ${CACHE_PROVIDER:-memory}
+      CACHE_DEFAULT_TTL_SECONDS: ${CACHE_DEFAULT_TTL_SECONDS:-300}
+      SFU_PROVIDER: livekit
+      NEXT_PUBLIC_LIVEKIT_URL: wss://${RTC_DOMAIN}
+      LIVEKIT_URL: wss://${RTC_DOMAIN}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      METRICS_ACCESS_TOKEN: ${METRICS_ACCESS_TOKEN}
+      DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@zstream.app}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-Demo1234}
+      DEMO_USER_NAME: ${DEMO_USER_NAME:-ZSTREAM Demo}
+    expose:
+      - "3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health/ready').then((res)=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 45s
+
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: zmeetings-livekit
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    volumes:
+      - ./ops/generated/livekit.yaml:/etc/livekit/livekit.yaml:ro
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    expose:
+      - "7880"
+      - "6789"
+
+  mongo:
+    image: mongo:7
+    container_name: zmeetings-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: zmeetings-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-15d}"
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./ops/generated/prometheus.production.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/alerts.production.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - alertmanager
+      - app
+      - cadvisor
+      - livekit
+      - node-exporter
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: zmeetings-alertmanager
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "127.0.0.1:9093:9093"
+    volumes:
+      - ./ops/generated/alertmanager.production.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: zmeetings-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: zmeetings-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    expose:
+      - "8080"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: zmeetings-node-exporter
+    restart: unless-stopped
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+
+volumes:
+  alertmanager-data:
+  caddy-config:
+  caddy-data:
+  grafana-data:
+  mongo-data:
+  prometheus-data:

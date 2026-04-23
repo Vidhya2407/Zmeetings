@@ -1,0 +1,39 @@
+deployment:
+  model: single-region-self-host
+  region: eu-central-1
+  topology: 1 app node + 1 LiveKit node on the same host
+
+guardrails:
+  host_cpu_percent:
+    soft_limit: 70
+    hard_limit: 85
+  host_memory_percent:
+    soft_limit: 75
+    hard_limit: 85
+  sfu_join_failure_rate_percent:
+    soft_limit: 2
+    hard_limit: 5
+    window: 10m
+  sfu_packet_loss_percent:
+    soft_limit: 1.5
+    hard_limit: 3
+    window: 5m
+  livekit_room_max_participants:
+    recommended: 120
+    enforced: 150
+  concurrent_active_rooms:
+    recommended: 12
+    hard_limit: 20
+  concurrent_join_bursts_per_minute:
+    recommended: 40
+    hard_limit: 60
+
+actions:
+  soft_limit:
+    - freeze new non-essential feature rollouts
+    - lower marketing or event traffic spikes
+    - prepare vertical scale-up
+  hard_limit:
+    - stop accepting large scheduled events on the single region
+    - scale host size or split app and LiveKit onto separate nodes
+    - keep the room max participant cap in place until metrics recover
