@@ -77,16 +77,15 @@ test.describe('Meetings Core Smoke', () => {
     await page.goto('/meetings/host?meetingId=m1');
     await expect(page.getByRole('heading', { name: /run the room with confidence/i })).toBeVisible();
 
-    const checklistHeading = page.getByRole('heading', { name: /pre-live host checklist/i });
-    await expect(async () => {
-      await page.getByRole('button', { name: /^green room$/i }).click();
-      await expect(checklistHeading).toBeVisible({ timeout: 1_000 });
-    }).toPass({ timeout: 15_000 });
-
-    await page.getByRole('button', { name: /view certificate/i }).click();
-    await expect(page.getByText(/certificate preview/i)).toBeVisible();
-
+    await page.getByRole('button', { name: /room controls/i }).click();
+    await expect(page.getByRole('button', { name: /cameras off/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /mute all/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /lock room|unlock room/i })).toBeVisible();
     await page.getByRole('button', { name: /cameras off/i }).click();
     await expect(page.getByText(/applying camera-off command|all participant cameras turned off|unable to turn off all cameras/i)).toBeVisible();
+
+    await page.getByRole('button', { name: /meeting tools/i }).click();
+    await expect(page.getByRole('button', { name: /start recording|stop recording/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /start transcript|stop transcript/i })).toBeVisible();
   });
 });
