@@ -21,7 +21,7 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: 'npm run dev -- -p 3100',
+        command: process.env.CI ? 'npm run start -- -p 3100' : 'npm run dev -- -p 3100',
         env: {
           AUTH_URL: baseURL,
           NEXTAUTH_URL: baseURL,

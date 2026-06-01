@@ -40,6 +40,8 @@ test.describe('Meetings Core Smoke', () => {
     await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
     await page.getByRole('button', { name: /create one for free/i }).click();
     await expect(page).toHaveURL(/\/register$/);
+    await page.goto('/register?step=consent');
+    await expect(page.getByRole('link', { name: /terms of service/i })).toBeVisible();
     await page.getByRole('link', { name: /terms of service/i }).click();
     await expect(page).toHaveURL(/\/terms-of-service$/);
   });

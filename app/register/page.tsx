@@ -604,14 +604,22 @@ function ConsentCard({
   const background = checked ? (isLight ? 'rgba(236,253,245,0.96)' : 'rgba(13,148,136,0.14)') : (isLight ? 'rgba(248,250,252,0.96)' : 'rgba(15,23,42,0.5)');
   const titleColor = checked ? (isLight ? '#065f46' : '#5eead4') : (isLight ? '#0f172a' : '#ffffff');
   const bodyColor = isLight ? '#475569' : '#9ca3af';
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onToggle();
+    }
+  };
 
   return (
-    <button
-      aria-pressed={checked}
+    <div
+      aria-checked={checked}
       className="w-full rounded-[1.5rem] border px-4 py-4 text-left transition"
       onClick={onToggle}
+      onKeyDown={handleKeyDown}
+      role="checkbox"
       style={{ borderColor, background }}
-      type="button"
+      tabIndex={0}
     >
       <div className="flex items-start gap-3">
         <div
@@ -627,10 +635,17 @@ function ConsentCard({
         <div className="min-w-0">
           <p className="text-base font-black" style={{ color: titleColor }}>{title}</p>
           <p className="mt-1 text-sm leading-6" style={{ color: bodyColor }}>{description}</p>
-          {extra}
+          {extra ? (
+            <div
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {extra}
+            </div>
+          ) : null}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 

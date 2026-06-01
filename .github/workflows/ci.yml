@@ -40,14 +40,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Build
+        run: npm run build
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
       - name: Smoke tests
         run: npm test -- --project=chromium --grep "Meetings Core Smoke"
-
-      - name: Build
-        run: npm run build
 
       - name: Upload Playwright report
         if: always()
