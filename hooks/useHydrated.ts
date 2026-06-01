@@ -11,13 +11,8 @@ type StoreWithPersist = {
 };
 
 export function useHydrated(store?: StoreWithPersist): boolean {
-  const [hydrated, setHydrated] = useState(() => {
-    if (!store?.persist) {
-      return false;
-    }
-
-    return store.persist.hasHydrated?.() ?? false;
-  });
+  // Keep the first client render aligned with the server output.
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!store?.persist) {

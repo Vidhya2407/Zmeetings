@@ -15,7 +15,7 @@ export function SettingSection({ title, children }: { title: string; children: R
   return (
     <motion.section
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[1.75rem] p-6 sm:p-7"
+      className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
       initial={{ opacity: 0, y: 16 }}
       style={{
         background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(10,15,24,0.72)',
@@ -24,7 +24,7 @@ export function SettingSection({ title, children }: { title: string; children: R
       }}
     >
       <h2
-        className="mb-5 border-b pb-3 text-sm font-black uppercase tracking-[0.16em]"
+        className="mb-4 border-b pb-3 text-sm font-black uppercase tracking-[0.16em]"
         style={{
           color: isLight ? '#0f172a' : '#ffffff',
           borderBottomColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -32,7 +32,7 @@ export function SettingSection({ title, children }: { title: string; children: R
       >
         {title}
       </h2>
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-3 sm:space-y-4">{children}</div>
     </motion.section>
   );
 }
@@ -41,15 +41,15 @@ export function ToggleSetting({ label, desc, checked, onChange }: { label: strin
   const isLight = useIsLightTheme();
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div>
-        <p className="text-base font-semibold" style={{ color: isLight ? '#0f172a' : '#f8fafc' }}>{label}</p>
-        {desc ? <p className="mt-1 max-w-[52ch] text-base leading-7" style={{ color: isLight ? '#475569' : '#cbd5e1' }}>{desc}</p> : null}
+    <div className="flex items-start justify-between gap-3 sm:gap-4">
+      <div className="min-w-0 pr-2">
+        <p className="text-[15px] font-semibold leading-6" style={{ color: isLight ? '#0f172a' : '#f8fafc' }}>{label}</p>
+        {desc ? <p className="mt-2 max-w-[54ch] text-sm leading-6 sm:text-[15px]" style={{ color: isLight ? '#475569' : '#cbd5e1' }}>{desc}</p> : null}
       </div>
       <button
         aria-checked={checked}
         aria-label={label}
-        className="relative h-6 w-11 flex-shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2"
+        className="relative mt-0.5 h-6 w-11 flex-shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2"
         onClick={() => onChange(!checked)}
         role="switch"
         style={{ background: checked ? 'rgb(0,229,186)' : isLight ? 'rgba(148,163,184,0.45)' : 'rgba(255,255,255,0.18)' }}

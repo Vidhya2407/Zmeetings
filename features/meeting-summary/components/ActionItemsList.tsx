@@ -8,7 +8,7 @@ type ActionItemsListProps = {
 export default function ActionItemsList({ items, isLight }: ActionItemsListProps) {
   return (
     <section
-      className="rounded-2xl border p-4"
+      className="rounded-2xl border p-5"
       style={{
         borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
         background: isLight ? 'rgba(248,250,252,0.95)' : 'rgba(255,255,255,0.03)',
@@ -17,11 +17,11 @@ export default function ActionItemsList({ items, isLight }: ActionItemsListProps
       <p className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
         Action Items
       </p>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-4 space-y-3">
         {items.length ? items.map((item) => (
           <li
             key={item}
-            className="rounded-xl border px-3 py-2 text-xs"
+            className="rounded-xl border px-4 py-3 text-sm"
             style={{
               borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
               color: isLight ? '#334155' : '#cbd5e1',
@@ -39,4 +39,3 @@ export default function ActionItemsList({ items, isLight }: ActionItemsListProps
     </section>
   );
 }
-

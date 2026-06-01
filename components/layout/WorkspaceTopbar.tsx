@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import BrandMark from '@/components/branding/BrandMark';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { useHydrated } from '@/hooks/useHydrated';
@@ -45,8 +46,11 @@ export default function WorkspaceTopbar() {
 
   const languageLabel = language === 'de' ? 'Deutsch' : 'English';
   const themeLabel = isLight ? t('workspace.profile.light', 'Light') : t('workspace.profile.dark', 'Dark');
-  const profileName = session?.user?.name ?? 'ZSTREAM Demo';
-  const profileEmail = session?.user?.email ?? 'demo@zstream.app';
+  const isDemoProfile = (session?.user?.id ?? '') === 'demo-user';
+  const rawProfileName = session?.user?.name ?? 'Z Meetings Demo';
+  const rawProfileEmail = session?.user?.email ?? 'demo@zstream.app';
+  const profileName = isDemoProfile && rawProfileName === 'ZSTREAM Demo' ? 'Z Meetings Demo' : rawProfileName;
+  const profileEmail = rawProfileEmail;
   const profileRole = session?.user?.role ?? 'user';
   const estimatedCarbonCredits = ((session?.user?.carbonPoints ?? 0) / 100).toFixed(2);
 
@@ -88,7 +92,7 @@ export default function WorkspaceTopbar() {
 
   return (
     <header
-      className="sticky top-0 z-30 flex h-16 items-center justify-between border-b px-4 md:px-6"
+      className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b px-4 py-2.5 md:flex-nowrap md:px-6"
       style={{
         background: isLight ? 'rgba(255,255,255,0.82)' : 'rgba(10,15,24,0.82)',
         borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -96,18 +100,18 @@ export default function WorkspaceTopbar() {
         WebkitBackdropFilter: 'blur(10px)',
       }}
     >
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-black uppercase tracking-[0.16em]" style={{ color: isLight ? '#64748b' : '#6b7280' }}>
           {t('workspace.topbar.workspace', 'Workspace')}
         </p>
-        <h1 className="text-lg font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
-          {titleByPath[basePath] ? t(titleByPath[basePath].key, titleByPath[basePath].fallback) : t('workspace.topbar.default', 'ZMeetings')}
+        <h1 className="truncate text-lg font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+          {titleByPath[basePath] ? t(titleByPath[basePath].key, titleByPath[basePath].fallback) : t('workspace.topbar.default', 'Z Meetings')}
         </h1>
       </div>
 
-      <div className="w-full max-w-[360px]">
+      <div className="hidden w-full max-w-[380px] lg:block">
         <input
-          className="h-10 w-full rounded-xl border px-3 text-sm outline-none"
+          className="h-10 w-full rounded-xl border px-4 text-sm outline-none"
           onChange={(event) => setGlobalSearch(event.target.value)}
           placeholder={t('workspace.topbar.searchPlaceholder', 'Search meetings, people, chats...')}
           style={{
@@ -119,25 +123,31 @@ export default function WorkspaceTopbar() {
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <GlobalQuickControls mode="inline" />
+      <div className="flex shrink-0 items-center gap-2.5">
+        <div className="hidden sm:block">
+          <GlobalQuickControls mode="inline" />
+        </div>
 
         <button
           aria-label={t('workspace.profile.notifications', 'Notifications')}
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl border"
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl border bg-[var(--control-bg)] border-[var(--control-border)] text-[var(--control-color)] transition-colors hover:border-[var(--control-hover-border)] hover:bg-[var(--control-hover-bg)] hover:text-[var(--control-hover-color)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
           onClick={toggleNotifications}
           style={{
-            background: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.05)',
-            borderColor: isLight ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.1)',
-            color: isLight ? '#475569' : '#e2e8f0',
-          }}
+            '--control-bg': isLight ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.05)',
+            '--control-border': isLight ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.1)',
+            '--control-color': isLight ? '#475569' : '#e2e8f0',
+            '--control-hover-bg': 'rgba(0,229,186,0.1)',
+            '--control-hover-border': 'rgba(0,229,186,0.35)',
+            '--control-hover-color': 'rgb(0,229,186)',
+          } as React.CSSProperties}
+          title={t('workspace.profile.notifications', 'Notifications')}
           type="button"
         >
           <svg aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           {unreadCount > 0 ? (
-            <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-rose-500 px-1 py-0.5 text-center text-sm font-black text-white">
+            <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-rose-500 px-1 py-0.5 text-center text-xs font-black text-white">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           ) : null}
@@ -147,17 +157,21 @@ export default function WorkspaceTopbar() {
           <button
             aria-expanded={profileOpen}
             aria-label={t('workspace.profile.profile', 'Profile')}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border bg-[var(--control-bg)] border-[var(--control-border)] text-[var(--control-color)] transition-colors hover:border-[var(--control-hover-border)] hover:bg-[var(--control-hover-bg)] hover:text-[var(--control-hover-color)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
             onClick={() => setProfileOpen((open) => !open)}
             style={{
-              background: profileOpen
+              '--control-bg': profileOpen
                 ? (isLight ? 'rgba(0,229,186,0.12)' : 'rgba(0,229,186,0.16)')
                 : (isLight ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.05)'),
-              borderColor: profileOpen
+              '--control-border': profileOpen
                 ? 'rgba(0,229,186,0.35)'
                 : (isLight ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.1)'),
-              color: isLight ? '#475569' : '#e2e8f0',
-            }}
+              '--control-color': isLight ? '#475569' : '#e2e8f0',
+              '--control-hover-bg': 'rgba(0,229,186,0.1)',
+              '--control-hover-border': 'rgba(0,229,186,0.35)',
+              '--control-hover-color': 'rgb(0,229,186)',
+            } as React.CSSProperties}
+            title={t('workspace.profile.profile', 'Profile')}
             type="button"
           >
             <svg aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -177,8 +191,8 @@ export default function WorkspaceTopbar() {
             >
               <div className="rounded-2xl p-3" style={{ background: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)'}` }}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black" style={{ background: 'linear-gradient(135deg, rgba(0,180,255,0.95), rgba(0,229,186,0.95))', color: '#032028' }}>
-                    Z
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(0,180,255,0.95), rgba(0,229,186,0.95))' }}>
+                    <BrandMark alt="Z Meetings" className="h-6 w-6" size={24} />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>{profileName}</p>

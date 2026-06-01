@@ -138,11 +138,13 @@ function RecordingsWorkspaceContent() {
   const muted = isLight ? '#64748b' : '#94a3b8';
   const panelBg = isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)';
   const panelBorder = isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)';
-  const softBg = isLight ? 'rgba(248,250,252,0.92)' : 'rgba(255,255,255,0.05)';
   const videoBg = isLight ? '#e8f0f4' : '#030712';
   const videoOverlay = isLight
     ? 'radial-gradient(circle at 50% 35%, rgba(0,229,186,0.18), transparent 34%), linear-gradient(135deg, rgba(226,232,240,0.96), rgba(241,245,249,0.92))'
     : 'radial-gradient(circle at 50% 35%, rgba(0,229,186,0.28), transparent 34%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,24,39,0.86))';
+  const heroBg = isLight
+    ? 'linear-gradient(135deg, rgba(255,255,255,0.96), rgba(241,245,249,0.92))'
+    : 'linear-gradient(135deg, rgba(15,23,42,0.62), rgba(8,20,24,0.56))';
 
   if (loading) {
     return <RecordingsFallback />;
@@ -150,10 +152,10 @@ function RecordingsWorkspaceContent() {
 
   if (!meetingId) {
     return (
-      <div className="space-y-5" style={{ fontFamily: APP_FONT_FAMILY }}>
+      <div className="mx-auto max-w-5xl space-y-6" style={{ fontFamily: APP_FONT_FAMILY }}>
         <section
-          className="rounded-3xl border p-5 md:p-6"
-          style={{ background: panelBg, borderColor: panelBorder }}
+          className="rounded-3xl border p-6"
+          style={{ background: heroBg, borderColor: panelBorder }}
         >
           <p className={LABEL_CLASS} style={{ color: 'rgb(0,229,186)' }}>
             {t('workspace.recordings.eyebrow', 'Recording')}
@@ -161,7 +163,7 @@ function RecordingsWorkspaceContent() {
           <h2 className="mt-2 text-3xl font-black" style={{ color: textPrimary }}>
             {t('workspace.recordings.libraryTitle', 'Recordings')}
           </h2>
-          <p className="mt-2 text-base leading-7" style={{ color: textSecondary }}>
+          <p className="mt-3 text-base leading-7" style={{ color: textSecondary }}>
             {t('workspace.recordings.librarySubtitle', 'Open a saved meeting recording from recent activity.')}
           </p>
         </section>
@@ -171,27 +173,31 @@ function RecordingsWorkspaceContent() {
             <p className="text-base font-bold" style={{ color: textPrimary }}>{error}</p>
           </section>
         ) : recordingItems.length ? (
-          <section className="grid gap-3 md:grid-cols-2">
+          <section className="grid gap-6 md:grid-cols-2">
             {recordingItems.map((item) => (
               <article
                 key={item.id}
-                className="rounded-3xl border p-5"
-                style={{ background: panelBg, borderColor: panelBorder }}
+                className="mx-auto w-full max-w-[620px] rounded-3xl border p-6"
+                style={{
+                  background: panelBg,
+                  borderColor: panelBorder,
+                  boxShadow: isLight ? '0 20px 44px rgba(15,23,42,0.06)' : '0 20px 40px rgba(0,0,0,0.16)',
+                }}
               >
-                <p className={LABEL_CLASS} style={{ color: muted }}>
+                <p className={LABEL_CLASS} style={{ color: 'rgb(0,229,186)' }}>
                   {t('workspace.recordings.ready', 'Ready to view')}
                 </p>
-                <h3 className="mt-3 text-lg font-black" style={{ color: textPrimary }}>
+                <h3 className="mt-2 text-lg font-black" style={{ color: textPrimary }}>
                   {item.title}
                 </h3>
-                <p className="mt-2 text-base leading-7" style={{ color: textSecondary }}>
+                <p className="mt-3 text-base leading-7" style={{ color: textSecondary }}>
                   {item.body}
                 </p>
-                <p className="mt-3 text-base" style={{ color: muted }}>
+                <p className="mt-4 inline-flex rounded-full border px-3 py-1 text-sm font-semibold" style={{ color: muted, borderColor: panelBorder }}>
                   {new Date(item.createdAt).toLocaleString()}
                 </p>
                 <button
-                  className={`mt-4 ${ACTION_BUTTON_CLASS}`}
+                  className={`mt-5 ${ACTION_BUTTON_CLASS}`}
                   onClick={() => router.push(`/recordings?meetingId=${encodeURIComponent(item.relatedMeetingId as string)}`)}
                   style={{ borderColor: 'rgba(0,229,186,0.35)', color: 'rgb(0,229,186)' }}
                   type="button"
@@ -240,10 +246,10 @@ function RecordingsWorkspaceContent() {
   }
 
   return (
-    <div className="space-y-5" style={{ fontFamily: APP_FONT_FAMILY }}>
+    <div className="space-y-6" style={{ fontFamily: APP_FONT_FAMILY }}>
       <section
-        className="rounded-3xl border p-5 md:p-6"
-        style={{ background: panelBg, borderColor: panelBorder }}
+        className="rounded-3xl border p-6"
+        style={{ background: heroBg, borderColor: panelBorder }}
       >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -253,7 +259,7 @@ function RecordingsWorkspaceContent() {
             <h2 className="mt-2 text-3xl font-black" style={{ color: textPrimary }}>
               {meeting.title}
             </h2>
-            <p className="mt-2 text-base leading-7" style={{ color: textSecondary }}>
+            <p className="mt-3 text-base leading-7" style={{ color: textSecondary }}>
               {formatTimeRange(meeting, language)}
             </p>
           </div>
@@ -268,10 +274,14 @@ function RecordingsWorkspaceContent() {
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section
           className="overflow-hidden rounded-3xl border"
-          style={{ background: videoBg, borderColor: panelBorder }}
+          style={{
+            background: videoBg,
+            borderColor: panelBorder,
+            boxShadow: isLight ? '0 28px 54px rgba(15,23,42,0.08)' : '0 24px 52px rgba(0,0,0,0.22)',
+          }}
         >
           <div className="relative flex aspect-video min-h-[320px] items-center justify-center">
             <div className="absolute inset-0 opacity-90" style={{ background: videoOverlay }} />
@@ -289,7 +299,7 @@ function RecordingsWorkspaceContent() {
               >
                 {isPlaying ? <PauseIcon /> : <PlayIcon />}
               </button>
-              <p className="mt-4 text-base font-black uppercase tracking-[0.12em]" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+              <p className="mt-5 text-base font-black uppercase tracking-[0.12em]" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
                 {isPlaying ? t('workspace.recordings.playing', 'Playing recording') : t('workspace.recordings.paused', 'Recording paused')}
               </p>
               <p className="mt-2 max-w-md text-base leading-7" style={{ color: isLight ? '#475569' : '#cbd5e1' }}>
@@ -299,23 +309,23 @@ function RecordingsWorkspaceContent() {
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <section className="rounded-3xl border p-5" style={{ background: panelBg, borderColor: panelBorder }}>
+        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+          <section className="rounded-3xl border p-6" style={{ background: panelBg, borderColor: panelBorder }}>
             <p className={LABEL_CLASS} style={{ color: muted }}>
               {t('workspace.recordings.details', 'Details')}
             </p>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 space-y-4">
               <DetailRow label={t('workspace.recordings.organizer', 'Organizer')} value={HOST_NAME_BY_ID[meeting.hostUserId] ?? meeting.hostUserId} isLight={isLight} />
               <DetailRow label={t('workspace.recordings.participants', 'Participants')} value={meeting.attendeesCount.toString()} isLight={isLight} />
               <DetailRow label={t('workspace.recordings.status', 'Status')} value={t('workspace.recordings.saved', 'Saved recording')} isLight={isLight} />
             </div>
           </section>
 
-          <section className="rounded-3xl border p-5" style={{ background: panelBg, borderColor: panelBorder }}>
+          <section className="rounded-3xl border p-6" style={{ background: panelBg, borderColor: panelBorder }}>
             <p className={LABEL_CLASS} style={{ color: muted }}>
               {t('workspace.recordings.summary', 'Summary')}
             </p>
-            <p className="mt-3 text-base leading-7" style={{ color: textSecondary }}>
+            <p className="mt-4 text-base leading-7" style={{ color: textSecondary }}>
               {summary?.summary ?? t('workspace.recordings.summaryPending', 'Summary is still being prepared.')}
             </p>
           </section>
@@ -323,15 +333,15 @@ function RecordingsWorkspaceContent() {
       </div>
 
       {summary?.actionItems?.length ? (
-        <section className="rounded-3xl border p-5" style={{ background: panelBg, borderColor: panelBorder }}>
+        <section className="rounded-3xl border p-6" style={{ background: panelBg, borderColor: panelBorder }}>
           <p className={LABEL_CLASS} style={{ color: muted }}>
             {t('workspace.recordings.followUp', 'Follow up')}
           </p>
-          <div className="mt-4 grid gap-2 md:grid-cols-2">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
             {summary.actionItems.map((item) => (
               <div
                 key={item}
-                className="rounded-2xl border p-3 text-base leading-7"
+                className="rounded-2xl border px-5 py-4 text-base leading-7"
                 style={{
                   background: isLight ? 'rgba(248,250,252,0.9)' : 'rgba(255,255,255,0.04)',
                   borderColor: panelBorder,
@@ -350,7 +360,7 @@ function RecordingsWorkspaceContent() {
 
 function DetailRow({ isLight, label, value }: { isLight: boolean; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-base" style={{ background: isLight ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.05)', fontFamily: APP_FONT_FAMILY }}>
+    <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-base" style={{ background: isLight ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.05)', fontFamily: APP_FONT_FAMILY }}>
       <span style={{ color: isLight ? '#64748b' : '#94a3b8' }}>{label}</span>
       <span className="font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>{value}</span>
     </div>

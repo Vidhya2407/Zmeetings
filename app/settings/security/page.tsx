@@ -15,6 +15,24 @@ import { useAppTranslations } from '../../../lib/utils/translations';
 import { useHydrated } from '@/hooks/useHydrated';
 import { useThemeStore } from '@/lib/stores/themeStore';
 
+type SmsCountry = {
+  id: string;
+  label: string;
+  dialCode: string;
+  placeholder: string;
+  minDigits: number;
+  maxDigits: number;
+  trunkPrefix?: string;
+};
+
+const SMS_COUNTRIES: SmsCountry[] = [
+  { id: 'de', label: 'Germany', dialCode: '+49', placeholder: '151 23456789', minDigits: 10, maxDigits: 12, trunkPrefix: '0' },
+  { id: 'us', label: 'United States', dialCode: '+1', placeholder: '201 555 0123', minDigits: 10, maxDigits: 10 },
+  { id: 'gb', label: 'United Kingdom', dialCode: '+44', placeholder: '07123 456789', minDigits: 10, maxDigits: 11, trunkPrefix: '0' },
+  { id: 'fr', label: 'France', dialCode: '+33', placeholder: '06 12 34 56 78', minDigits: 9, maxDigits: 10, trunkPrefix: '0' },
+  { id: 'in', label: 'India', dialCode: '+91', placeholder: '98765 43210', minDigits: 10, maxDigits: 10 },
+];
+
 function useSecurityTheme() {
   const hydrated = useHydrated(useThemeStore);
   const { theme } = useThemeStore();
@@ -36,13 +54,52 @@ function useSecurityTheme() {
   };
 }
 
+function getSmsCountry(id: string) {
+  return SMS_COUNTRIES.find((country) => country.id === id) ?? SMS_COUNTRIES[0];
+}
+
+function normalizeSmsPhoneInput(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function isValidSmsPhone(country: SmsCountry, value: string) {
+  const digits = normalizeSmsPhoneInput(value);
+  if (!digits.length) {
+    return false;
+  }
+
+  return digits.length >= country.minDigits && digits.length <= country.maxDigits;
+}
+
+function toInternationalSmsPhone(country: SmsCountry, value: string) {
+  const digits = normalizeSmsPhoneInput(value);
+  if (!digits.length) {
+    return '';
+  }
+
+  const nationalDigits = country.trunkPrefix && digits.startsWith(country.trunkPrefix)
+    ? digits.slice(country.trunkPrefix.length)
+    : digits;
+
+  return `${country.dialCode}${nationalDigits}`;
+}
+
+function formatSmsPhone(country: SmsCountry, value: string) {
+  const international = toInternationalSmsPhone(country, value);
+  if (!international) {
+    return '';
+  }
+
+  return `${country.dialCode} ${international.slice(country.dialCode.length)}`;
+}
+
 function SectionCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   const theme = useSecurityTheme();
 
   return (
     <motion.section
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-6"
+      className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
       initial={{ opacity: 0, y: 16 }}
       style={{
         background: theme.panelBg,
@@ -51,13 +108,13 @@ function SectionCard({ title, icon, children }: { title: string; icon: string; c
       }}
     >
       <h2
-        className="mb-5 flex items-center gap-2 border-b pb-3 text-sm font-black uppercase tracking-widest"
+        className="mb-4 flex items-center gap-2 border-b pb-3 text-sm font-black uppercase tracking-widest"
         style={{ borderBottom: `1px solid ${theme.panelBorder}`, color: theme.title }}
       >
         {icon ? <span aria-hidden="true">{icon}</span> : null}
         {title}
       </h2>
-      <div className="space-y-4">{children}</div>
+      <div className="space-y-4 sm:space-y-5">{children}</div>
     </motion.section>
   );
 }
@@ -71,7 +128,35 @@ function SecurityInput(
   return (
     <input
       {...rest}
-      className={`w-full rounded-xl px-4 py-3 text-sm outline-none transition-all ${centered ? 'text-center font-mono tracking-[0.35em]' : ''}`.trim()}
+      className={`w-full rounded-xl px-4 py-3 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${centered ? 'text-center font-mono tracking-[0.35em]' : ''}`.trim()}
+      onBlur={(event) => {
+        event.currentTarget.style.borderColor = theme.inputBorder;
+        props.onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        event.currentTarget.style.borderColor = 'rgba(0,229,186,0.45)';
+        props.onFocus?.(event);
+      }}
+      style={{
+        background: theme.inputBg,
+        border: `1px solid ${theme.inputBorder}`,
+        color: theme.title,
+        ...style,
+      }}
+    />
+  );
+}
+
+function SecuritySelect(
+  props: React.SelectHTMLAttributes<HTMLSelectElement>,
+) {
+  const theme = useSecurityTheme();
+  const { style, ...rest } = props;
+
+  return (
+    <select
+      {...rest}
+      className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
       onBlur={(event) => {
         event.currentTarget.style.borderColor = theme.inputBorder;
         props.onBlur?.(event);
@@ -108,21 +193,22 @@ function ActionButton({
 
   return (
     <motion.button
-      className="rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
+      className="min-h-[44px] rounded-xl px-5 py-3 text-sm font-bold transition-all enabled:hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:cursor-not-allowed"
       disabled={disabled}
       onClick={onClick}
       style={{
         background: active
           ? disabled
-            ? theme.softBg
-            : 'rgba(0,229,186,0.12)'
+            ? 'var(--brand-gradient-disabled)'
+            : 'var(--brand-gradient)'
           : theme.softBg,
         color: active
           ? disabled
-            ? theme.muted
-            : theme.successText
+            ? 'rgba(4,17,16,0.45)'
+            : '#041110'
           : theme.body,
-        border: `1px solid ${active && !disabled ? 'rgba(0,229,186,0.25)' : theme.panelBorder}`,
+        border: `1px solid ${active && !disabled ? 'rgba(0,201,167,0.24)' : theme.panelBorder}`,
+        boxShadow: active && !disabled ? 'var(--brand-shadow)' : 'none',
       }}
       type={type}
       whileHover={disabled ? {} : { scale: 1.02 }}
@@ -160,7 +246,7 @@ function SecurityStatusSummary() {
 
   return (
     <div
-      className="w-full max-w-xs rounded-2xl px-4 py-3"
+      className="w-full max-w-sm rounded-2xl px-4 py-4"
       style={{
         background: theme.softBg,
         borderLeft: `4px solid ${theme.successText}`,
@@ -169,7 +255,7 @@ function SecurityStatusSummary() {
       <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: theme.muted }}>
         Account status
       </p>
-      <div className="mt-2 space-y-1.5">
+      <div className="mt-2.5 space-y-2">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between gap-4">
             <span className="text-sm" style={{ color: theme.body }}>{row.label}</span>
@@ -199,7 +285,7 @@ function StatusListCard({
   return (
     <motion.section
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-[1.75rem] p-6"
+      className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
       initial={{ opacity: 0, y: 16 }}
       style={{
         background: theme.panelBg,
@@ -207,7 +293,7 @@ function StatusListCard({
         boxShadow: theme.isLight ? '0 16px 40px rgba(15,23,42,0.08)' : 'none',
       }}
     >
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-black" style={{ color: theme.title }}>
+      <h2 className="mb-5 flex items-center gap-2 text-sm font-black" style={{ color: theme.title }}>
         <span aria-hidden="true">{icon}</span>
         {title}
       </h2>
@@ -215,17 +301,17 @@ function StatusListCard({
         {rows.map((row) => (
           <div
             key={row.label}
-            className="flex items-center justify-between gap-4 border-b py-3 text-sm"
+            className="flex items-start justify-between gap-4 border-b py-4 text-sm sm:items-center"
             style={{ borderBottom: `1px solid ${theme.panelBorder}` }}
           >
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3.5">
               <span
                 className="inline-block h-3 w-3 rounded-full"
                 style={{ background: row.good ? accent : 'rgb(59,130,246)', boxShadow: row.good ? `0 0 14px ${accent}` : 'none' }}
               />
               <span style={{ color: theme.title }}>{row.label}</span>
             </div>
-            <span className="text-right text-sm" style={{ color: theme.body }}>{row.value}</span>
+            <span className="min-w-[11rem] text-right text-sm leading-6" style={{ color: theme.body }}>{row.value}</span>
           </div>
         ))}
       </div>
@@ -250,7 +336,7 @@ function DeviceCard({
   const theme = useSecurityTheme();
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b py-4" style={{ borderBottom: `1px solid ${theme.panelBorder}` }}>
+    <div className="flex items-start justify-between gap-4 border-b py-4 sm:items-center sm:gap-5" style={{ borderBottom: `1px solid ${theme.panelBorder}` }}>
       <div className="flex min-w-0 items-center gap-4">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-2xl text-xl"
@@ -260,7 +346,7 @@ function DeviceCard({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold" style={{ color: theme.title }}>{name}</p>
-          <p className="text-sm" style={{ color: theme.body }}>{detail}</p>
+          <p className="mt-1 text-sm leading-6" style={{ color: theme.body }}>{detail}</p>
         </div>
       </div>
       {current ? (
@@ -268,7 +354,7 @@ function DeviceCard({
           Current
         </span>
       ) : (
-        <button className="rounded-xl px-4 py-2 text-sm font-bold" onClick={onAction} style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}`, color: theme.body }} type="button">
+        <button className="rounded-xl px-4 py-2.5 text-sm font-bold" onClick={onAction} style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}`, color: theme.body }} type="button">
           {actionLabel ?? 'Remove'}
         </button>
       )}
@@ -283,6 +369,8 @@ export default function SecurityPage() {
   const [totpCode, setTotpCode] = React.useState('');
   const [totpError, setTotpError] = React.useState('');
   const [smsStage, setSmsStage] = React.useState<SmsStage>('idle');
+  const [smsCountryId, setSmsCountryId] = React.useState('de');
+  const [phoneInput, setPhoneInput] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [smsCode, setSmsCode] = React.useState('');
   const [smsError, setSmsError] = React.useState('');
@@ -306,14 +394,12 @@ export default function SecurityPage() {
   const resendLabel = smsCooldown > 0
     ? t('security.resendIn', 'Resend in {seconds}s').replace('{seconds}', String(smsCooldown))
     : t('security.resendCode');
+  const smsCountry = getSmsCountry(smsCountryId);
 
   const canSubmitPasswordChange = Boolean(
     currentPw &&
       newPw &&
       confirmPw &&
-      newPw === confirmPw &&
-      newPw.length >= 8 &&
-      currentPw !== newPw &&
       !pwLoading,
   );
 
@@ -354,12 +440,20 @@ export default function SecurityPage() {
   };
 
   const handleSendSms = () => {
-    if (!phone.replace(/\D/g, '').length) {
+    const normalizedPhone = normalizeSmsPhoneInput(phoneInput);
+    if (!normalizedPhone.length) {
       setSmsError(t('security.enterPhone'));
       return;
     }
+    if (!isValidSmsPhone(smsCountry, normalizedPhone)) {
+      setSmsError(t('security.enterValidPhone', 'Enter a valid phone number.'));
+      return;
+    }
+    const formattedPhone = formatSmsPhone(smsCountry, normalizedPhone);
     setSmsError('');
     setSmsCode('');
+    setPhone(formattedPhone);
+    setPhoneInput(normalizedPhone);
     setSmsStage('entering');
     startSmsCooldown();
   };
@@ -500,8 +594,8 @@ export default function SecurityPage() {
             : 'linear-gradient(180deg, #09111c 0%, #0a0f18 100%)',
         }}
       >
-        <div className="mx-auto max-w-4xl space-y-6 px-4 pb-20 pt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto max-w-[56rem] space-y-8 px-4 pb-20 pt-8 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.24em]" style={{ color: theme.successText }}>
                 {t('settings.security')}
@@ -514,7 +608,7 @@ export default function SecurityPage() {
               </p>
             </div>
             <Link
-              className="rounded-xl px-4 py-2 text-sm font-bold transition-all"
+              className="self-start rounded-xl px-4 py-2.5 text-sm font-bold transition-all hover:border-[rgba(0,229,186,0.35)] hover:text-[rgb(0,229,186)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent sm:self-end"
               href="/settings"
               style={{
                 background: theme.softBg,
@@ -529,7 +623,7 @@ export default function SecurityPage() {
           <div className="space-y-6">
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[1.75rem] p-6"
+          className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
           initial={{ opacity: 0, y: 16 }}
           style={{
             background: theme.panelBg,
@@ -568,7 +662,7 @@ export default function SecurityPage() {
 
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[1.75rem] p-6"
+          className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
           initial={{ opacity: 0, y: 16 }}
           style={{
             background: theme.panelBg,
@@ -589,14 +683,14 @@ export default function SecurityPage() {
               onAction={() => setTrustedDevices((current) => current.filter((item) => item.id !== device.id))}
             />
           ))}
-          <div className="mt-4 rounded-2xl p-4 text-sm leading-7" style={{ background: 'rgba(0,128,255,0.08)', border: '1px solid rgba(0,128,255,0.2)', color: theme.body }}>
+          <div className="mt-5 rounded-2xl px-5 py-4 text-sm leading-7" style={{ background: 'rgba(0,128,255,0.08)', border: '1px solid rgba(0,128,255,0.2)', color: theme.body }}>
             Trusted devices help keep meeting access smooth while letting you remove browsers or devices you no longer use.
           </div>
         </motion.section>
 
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[1.75rem] p-5"
+          className="rounded-[1.75rem] px-5 py-5 sm:px-6 sm:py-6"
           initial={{ opacity: 0, y: 16 }}
           style={{
             background: theme.panelBg,
@@ -614,7 +708,7 @@ export default function SecurityPage() {
               </p>
             </div>
             <Link
-              className="inline-flex rounded-xl px-4 py-2 text-sm font-bold transition-all"
+              className="inline-flex justify-center whitespace-nowrap rounded-xl px-5 py-2 text-sm font-bold transition-all sm:min-w-[148px]"
               href="/privacy-policy"
               style={{
                 background: theme.softBg,
@@ -629,7 +723,7 @@ export default function SecurityPage() {
 
         <StatusListCard
           footer={
-            <div className="mt-1 flex flex-wrap gap-3">
+            <div className="mt-2 flex flex-wrap gap-4">
               <ActionButton onClick={handleExport} variant="secondary">
                 {dataExporting ? t('settings.preparing') : 'Request my data (DSAR)'}
               </ActionButton>
@@ -679,7 +773,7 @@ export default function SecurityPage() {
                   {t('security.stepOneDesc')}
                 </p>
 
-                <div className="mb-5 flex flex-col gap-5 sm:flex-row">
+                <div className="mb-6 flex flex-col gap-6 sm:flex-row">
                   <div className="flex-shrink-0">
                     <div className="mx-auto flex h-36 w-36 items-center justify-center rounded-2xl bg-white p-[10px]">
                       <div
@@ -701,7 +795,7 @@ export default function SecurityPage() {
                   </div>
 
                   <div className="flex-1">
-                    <p className="mb-1.5 text-xs font-semibold" style={{ color: theme.body }}>
+                    <p className="mb-2 text-xs font-semibold" style={{ color: theme.body }}>
                       {t('security.manualSecret')}
                     </p>
                     <div
@@ -728,7 +822,7 @@ export default function SecurityPage() {
                 <p className="mb-2 text-sm font-semibold" style={{ color: theme.title }}>
                   {t('security.stepTwo')}
                 </p>
-                <div className="mb-3 flex gap-3">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start">
                   <SecurityInput
                     aria-label="TOTP verification code"
                     autoComplete="one-time-code"
@@ -797,14 +891,56 @@ export default function SecurityPage() {
           </p>
 
           {smsStage === 'idle' ? (
-            <div className="space-y-3">
-              <SecurityInput
-                autoComplete="tel"
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="+49 151 2345 6789"
-                type="tel"
-                value={phone}
-              />
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,220px)_1fr]">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em]" htmlFor="sms-country" style={{ color: theme.muted }}>
+                    {t('security.phoneCountry', 'Country / region')}
+                  </label>
+                  <SecuritySelect
+                    aria-label={t('security.phoneCountry', 'Country / region')}
+                    id="sms-country"
+                    onChange={(event) => {
+                      setSmsCountryId(event.target.value);
+                      if (smsError) {
+                        setSmsError('');
+                      }
+                    }}
+                    value={smsCountryId}
+                  >
+                    {SMS_COUNTRIES.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.label} ({country.dialCode})
+                      </option>
+                    ))}
+                  </SecuritySelect>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.2em]" htmlFor="sms-phone" style={{ color: theme.muted }}>
+                    {t('security.phoneNumber', 'Phone number')}
+                  </label>
+                  <SecurityInput
+                    aria-label={t('security.phoneNumber', 'Phone number')}
+                    autoComplete="tel-national"
+                    id="sms-phone"
+                    inputMode="numeric"
+                    maxLength={smsCountry.maxDigits}
+                    onChange={(event) => {
+                      setPhoneInput(normalizeSmsPhoneInput(event.target.value).slice(0, smsCountry.maxDigits));
+                      if (smsError) {
+                        setSmsError('');
+                      }
+                    }}
+                    pattern="[0-9]*"
+                    placeholder={smsCountry.placeholder}
+                    type="tel"
+                    value={phoneInput}
+                  />
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: theme.muted }}>
+                {t('security.phoneHint', 'Choose the country code, then enter the local number without the international prefix.')}
+              </p>
               {smsError ? (
                 <p className="text-xs text-red-400" role="alert">
                   {smsError}
@@ -815,8 +951,8 @@ export default function SecurityPage() {
           ) : null}
 
           {smsStage === 'entering' ? (
-            <div className="space-y-3">
-              <div className="rounded-xl p-3" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
+            <div className="space-y-4">
+              <div className="rounded-2xl px-4 py-4" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
                 <p className="text-xs" style={{ color: theme.muted }}>
                   {t('security.codeSentTo')}
                 </p>
@@ -843,7 +979,7 @@ export default function SecurityPage() {
                   {smsError}
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-4">
                 <ActionButton disabled={smsCode.length < 4} onClick={handleSmsVerify}>
                   {t('security.verify')}
                 </ActionButton>
@@ -867,9 +1003,9 @@ export default function SecurityPage() {
           ) : null}
 
           {smsStage === 'active' ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <SuccessBanner message={t('security.smsEnabled')} />
-              <div className="rounded-xl p-3" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
+              <div className="rounded-2xl px-4 py-4" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
                 <p className="text-xs" style={{ color: theme.muted }}>
                   {t('security.codeSentTo')}
                 </p>
@@ -881,6 +1017,7 @@ export default function SecurityPage() {
                 className="text-xs font-semibold text-red-400 transition-colors hover:text-red-300"
                 onClick={() => {
                   setSmsStage('idle');
+                  setPhoneInput('');
                   setPhone('');
                   setSmsCode('');
                   setSmsError('');
@@ -895,12 +1032,14 @@ export default function SecurityPage() {
         </SectionCard>
 
         <SectionCard icon="" title={t('security.backupCodes')}>
-          <p className="text-sm" style={{ color: theme.body }}>
-            {t('security.backupCodesDesc')}
-          </p>
-          <p className="text-xs" style={{ color: theme.muted }}>
-            {t('security.backupWarning')}
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm" style={{ color: theme.body }}>
+              {t('security.backupCodesDesc')}
+            </p>
+            <p className="text-xs leading-6" style={{ color: theme.muted }}>
+              {t('security.backupWarning')}
+            </p>
+          </div>
 
           {backupStage === 'idle' ? (
             <ActionButton onClick={handleGenerateBackup}>{t('security.generateBackupCodes')}</ActionButton>
@@ -920,7 +1059,7 @@ export default function SecurityPage() {
 
           {backupStage === 'ready' ? (
             <div className="space-y-4">
-              <div className="rounded-2xl p-4" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
+              <div className="rounded-2xl px-4 py-4 sm:px-5" style={{ background: theme.softBg, border: `1px solid ${theme.panelBorder}` }}>
                 <p className="mb-3 text-sm font-semibold" style={{ color: theme.title }}>
                   {t('security.yourBackupCodes')}
                 </p>
@@ -932,12 +1071,12 @@ export default function SecurityPage() {
                   ))}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-4">
                 <ActionButton onClick={handleDownloadCodes}>{downloaded ? t('security.downloaded') : t('security.downloadTxt')}</ActionButton>
                 <ActionButton onClick={handleCopyAll} variant="secondary">{copiedAll ? t('security.copied') : t('security.copyAll')}</ActionButton>
                 <ActionButton onClick={handleGenerateBackup} variant="secondary">{t('security.regenerate')}</ActionButton>
               </div>
-              <p className="text-xs" style={{ color: theme.muted }}>
+              <p className="text-xs leading-6" style={{ color: theme.muted }}>
                 {t('security.backupStoreDesc')}
               </p>
             </div>
@@ -959,7 +1098,7 @@ export default function SecurityPage() {
             ) : null}
           </AnimatePresence>
 
-          <form className="space-y-3" onSubmit={handleChangePw}>
+          <form className="space-y-5" onSubmit={handleChangePw}>
             {[
               {
                 id: 'cur-pw',
@@ -984,7 +1123,7 @@ export default function SecurityPage() {
               },
             ].map((field) => (
               <div key={field.id}>
-                <label className="mb-1.5 block text-xs font-semibold" htmlFor={field.id} style={{ color: theme.body }}>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em]" htmlFor={field.id} style={{ color: theme.body }}>
                   {field.label}
                 </label>
                 <SecurityInput
@@ -1004,9 +1143,11 @@ export default function SecurityPage() {
               </p>
             ) : null}
 
-            <ActionButton disabled={!canSubmitPasswordChange} type="submit">
-              {pwLoading ? '...' : t('security.changePassword')}
-            </ActionButton>
+            <div className="pt-1">
+              <ActionButton disabled={!canSubmitPasswordChange} type="submit">
+                {pwLoading ? '...' : t('security.changePassword')}
+              </ActionButton>
+            </div>
           </form>
         </SectionCard>
       </div>

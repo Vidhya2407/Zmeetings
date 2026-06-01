@@ -15,7 +15,7 @@ export default function DirectoryGrid({
   onMessage: (user: WorkspaceUser) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
       {people.map((person) => (
         <ContactCard key={person.id} isLight={isLight} onInvite={onInvite} onMessage={onMessage} user={person} />
       ))}

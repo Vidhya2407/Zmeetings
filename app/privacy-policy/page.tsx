@@ -3,7 +3,7 @@ import LegalDocument from '@/components/legal/LegalDocument';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'Privacy policy for the ZSTREAM beta application.',
+  description: 'Privacy policy for the Z Meetings beta application.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -12,14 +12,14 @@ export default function PrivacyPolicyPage() {
       eyebrow={{ en: 'Legal', de: 'Rechtliches' }}
       title={{ en: 'Privacy Policy', de: 'Datenschutzerklarung' }}
       intro={{
-        en: 'This Privacy Policy explains how ZSTREAM and Zero-Carbon handle personal information in the current beta application, including account access, platform usage, support interactions, and sustainability-related product analytics.',
-        de: 'Diese Datenschutzerklarung beschreibt, wie ZSTREAM und Zero-Carbon personenbezogene Daten in der aktuellen Beta-Anwendung verarbeiten, einschliesslich Kontozugang, Plattformnutzung, Support-Anfragen und nachhaltigkeitsbezogener Produktanalysen.',
+        en: 'This Privacy Policy explains how Z Meetings and Zero-Carbon handle personal information in the current beta application, including account access, platform usage, support interactions, and sustainability-related product analytics.',
+        de: 'Diese Datenschutzerklarung beschreibt, wie Z Meetings und Zero-Carbon personenbezogene Daten in der aktuellen Beta-Anwendung verarbeiten, einschliesslich Kontozugang, Plattformnutzung, Support-Anfragen und nachhaltigkeitsbezogener Produktanalysen.',
       }}
       lastUpdated={{ en: 'March 27, 2026', de: '27. Marz 2026' }}
       showBackButton
       sourceNote={{
-        en: 'Based on Zero-Carbon public site legal references and privacy-first product statements published at zero-carbon.de, including the public footer legal navigation, cookie disclosures, contact details, and privacy messaging. This version is adapted for the ZSTREAM beta product experience.',
-        de: 'Basiert auf den offentlich sichtbaren rechtlichen Hinweisen und Privacy-First-Aussagen von zero-carbon.de, einschliesslich Footer-Navigation, Cookie-Hinweisen, Kontaktdaten und Datenschutzbotschaften. Diese Version wurde fur die ZSTREAM-Beta angepasst.',
+        en: 'Based on Zero-Carbon public site legal references and privacy-first product statements published at zero-carbon.de, including the public footer legal navigation, cookie disclosures, contact details, and privacy messaging. This version is adapted for the Z Meetings beta product experience.',
+        de: 'Basiert auf den offentlich sichtbaren rechtlichen Hinweisen und Privacy-First-Aussagen von zero-carbon.de, einschliesslich Footer-Navigation, Cookie-Hinweisen, Kontaktdaten und Datenschutzbotschaften. Diese Version wurde fur die Z Meetings Beta angepasst.',
       }}
       sections={[
         {
@@ -51,8 +51,8 @@ export default function PrivacyPolicyPage() {
               de: 'Praferenzdaten wie Sprache, Theme, Wiedergabeeinstellungen und Einwilligungsentscheidungen.',
             },
             {
-              en: 'Support and communication data when you contact the Zero-Carbon or ZSTREAM team.',
-              de: 'Support- und Kommunikationsdaten, wenn Sie das Zero-Carbon- oder ZSTREAM-Team kontaktieren.',
+              en: 'Support and communication data when you contact the Zero-Carbon or Z Meetings team.',
+              de: 'Support- und Kommunikationsdaten, wenn Sie das Zero-Carbon- oder Z Meetings-Team kontaktieren.',
             },
           ],
         },
@@ -64,8 +64,8 @@ export default function PrivacyPolicyPage() {
               de: 'Zur Erstellung und Absicherung von Konten, zur Authentifizierung von Nutzerinnen und Nutzern sowie fur Passwortwiederherstellung oder OTP-Verifizierung, sofern aktiviert.',
             },
             {
-              en: 'To operate the streaming platform, personalize the interface, and maintain core platform features.',
-              de: 'Zum Betrieb der Streaming-Plattform, zur Personalisierung der Oberflache und zur Aufrechterhaltung zentraler Plattformfunktionen.',
+              en: 'To operate the meetings platform, personalize the interface, and maintain core platform features.',
+              de: 'Zum Betrieb der Meetings-Plattform, zur Personalisierung der Oberflache und zur Aufrechterhaltung zentraler Plattformfunktionen.',
             },
             {
               en: 'To measure beta reliability, detect abuse, prevent fraud, troubleshoot issues, and improve the product.',
@@ -132,6 +132,5 @@ export default function PrivacyPolicyPage() {
     />
   );
 }
-
 
 

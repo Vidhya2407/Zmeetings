@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import BrandMark from '@/components/branding/BrandMark';
 import { useHydrated } from '@/hooks/useHydrated';
 import { useThemeStore } from '@/lib/stores/themeStore';
 import { useWorkspaceStore, type WorkspaceSection } from '@/lib/stores/workspaceStore';
@@ -28,12 +29,7 @@ const navItems: NavItem[] = [
 ];
 
 export default function WorkspaceSidebar() {
-  const { t } = useAppTranslations();
-  const pathname = usePathname();
-  const hydrated = useHydrated(useThemeStore);
-  const { theme } = useThemeStore();
-  const isLight = (hydrated ? theme : 'dark') === 'light';
-  const setActiveSection = useWorkspaceStore((state) => state.setActiveSection);
+  const { pathname, isLight, setActiveSection, t } = useWorkspaceNavTheme();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -145,12 +141,12 @@ export default function WorkspaceSidebar() {
         <div className={`mb-3 flex items-center ${menuOpen ? 'justify-start' : 'justify-center'}`}>
           <Link
             href="/meet"
-            aria-label="ZSTREAM"
+            aria-label="Z Meetings"
             className={`flex items-center gap-2 rounded-xl ${menuOpen ? 'px-3 py-2 text-base' : 'h-10 w-10 justify-center text-base'} font-black`}
             style={{ background: 'rgba(0,229,186,0.15)', color: 'rgb(0,229,186)' }}
           >
-            <span>Z</span>
-            {menuOpen ? <span className="text-sm tracking-[0.12em]">ZSTREAM</span> : null}
+            <BrandMark alt="Z Meetings" className="h-6 w-6" size={24} />
+            {menuOpen ? <span className="text-sm tracking-[0.12em]">Meetings</span> : null}
           </Link>
         </div>
 
@@ -158,37 +154,61 @@ export default function WorkspaceSidebar() {
           {navItems.map(renderDesktopNavItem)}
         </nav>
       </aside>
-
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t px-2 pb-[max(env(safe-area-inset-bottom),0.35rem)] pt-1 md:hidden"
-        style={{ background: sidebarBg, borderColor, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}
-      >
-        <div className="flex items-stretch gap-1">
-          {navItems.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const label = t(item.labelKey, item.fallback);
-            const isMeet = item.section === 'meet';
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl px-1 py-2 font-bold ${isMeet ? 'relative -top-1' : ''}`}
-                style={{
-                  background: active ? 'rgba(0,229,186,0.14)' : 'transparent',
-                  color: active ? 'rgb(0,229,186)' : (isLight ? '#475569' : '#94a3b8'),
-                  border: isMeet ? '1px solid rgba(0,229,186,0.22)' : '1px solid transparent',
-                }}
-                aria-label={label}
-              >
-                <span className="mb-1 flex h-6 w-6 items-center justify-center">{item.icon}</span>
-                <span className="w-full truncate text-center" style={{ fontSize: '11px', lineHeight: '14px' }}>{label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
+}
+
+export function MobileWorkspaceNav() {
+  const { pathname, isLight, t } = useWorkspaceNavTheme();
+  const sidebarBg = isLight ? 'rgba(255,255,255,0.82)' : 'rgba(10,15,24,0.82)';
+  const borderColor = isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)';
+
+  return (
+    <nav
+      className="border-t px-2 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1 md:hidden"
+      style={{
+        background: sidebarBg,
+        borderColor,
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        boxShadow: isLight ? '0 -8px 24px rgba(15,23,42,0.08)' : '0 -10px 28px rgba(0,0,0,0.3)',
+      }}
+    >
+      <div className="flex items-stretch gap-1">
+        {navItems.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const label = t(item.labelKey, item.fallback);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-xl px-1 py-1.5 font-bold"
+              style={{
+                background: active ? 'rgba(0,229,186,0.14)' : 'transparent',
+                color: active ? 'rgb(0,229,186)' : (isLight ? '#475569' : '#94a3b8'),
+                border: active ? '1px solid rgba(0,229,186,0.22)' : '1px solid transparent',
+              }}
+              aria-label={label}
+            >
+              <span className="mb-0.5 flex h-5 w-5 items-center justify-center">{item.icon}</span>
+              <span className="w-full truncate text-center" style={{ fontSize: '10px', lineHeight: '13px' }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function useWorkspaceNavTheme() {
+  const { t } = useAppTranslations();
+  const pathname = usePathname();
+  const hydrated = useHydrated(useThemeStore);
+  const { theme } = useThemeStore();
+  const isLight = (hydrated ? theme : 'dark') === 'light';
+  const setActiveSection = useWorkspaceStore((state) => state.setActiveSection);
+
+  return { isLight, pathname, setActiveSection, t };
 }
 
 function iconStroke() {

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <linearGradient id="zGradient" x1="5%" y1="0%" x2="95%" y2="100%">
+      <stop offset="0%" stop-color="#00E5BA"/>
+      <stop offset="40%" stop-color="#00C9A7"/>
+      <stop offset="100%" stop-color="#007A6A"/>
+    </linearGradient>
+    <linearGradient id="shineGradient" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <path
+    d="M 185,210 L 615,210 L 185,590 L 615,590"
+    stroke="url(#zGradient)"
+    stroke-width="160"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+    filter="url(#glow)"
+  />
+  <path
+    d="M 185,210 L 615,210 L 185,590 L 615,590"
+    stroke="url(#shineGradient)"
+    stroke-width="160"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>

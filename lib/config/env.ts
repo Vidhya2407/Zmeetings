@@ -15,7 +15,7 @@ export const appEnv = {
   mongoUri: sanitizeEnvValue(process.env.MONGODB_URI) || 'mongodb://localhost:27017/zstream',
   demoUserEmail: sanitizeEnvValue(process.env.DEMO_USER_EMAIL) || 'demo@zstream.app',
   demoUserPassword: sanitizeEnvValue(process.env.DEMO_USER_PASSWORD) || 'Demo1234',
-  demoUserName: sanitizeEnvValue(process.env.DEMO_USER_NAME) || 'ZSTREAM Demo',
+  demoUserName: sanitizeEnvValue(process.env.DEMO_USER_NAME) || 'Z Meetings Demo',
   stripeSecretKey: sanitizeEnvValue(process.env.STRIPE_SECRET_KEY),
   cacheProvider: normalizeCacheProvider(sanitizeEnvValue(process.env.CACHE_PROVIDER)),
   cacheDefaultTtlSeconds: parsePositiveInt(process.env.CACHE_DEFAULT_TTL_SECONDS, 300),

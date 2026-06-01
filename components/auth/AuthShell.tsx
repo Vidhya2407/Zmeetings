@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import React from 'react';
 import { motion } from 'framer-motion';
+import BrandMark from '@/components/branding/BrandMark';
 import { useHydrated } from '@/hooks/useHydrated';
 import { useThemeStore } from '@/lib/stores/themeStore';
 
@@ -28,7 +29,7 @@ export function AuthShell({
   title,
   description,
   icon,
-  brandTagline = 'Zero Carbon Streaming',
+  brandTagline = 'Zero Carbon Meetings',
   maxWidthClassName = 'max-w-md',
   children,
   footer,
@@ -37,14 +38,14 @@ export function AuthShell({
 
   return (
     <div
-      className="min-h-screen px-4 py-10 sm:px-6 sm:py-14"
+      className="min-h-screen px-4 pb-10 pt-20 sm:px-6 sm:py-14"
       style={{
         background: isLight
           ? 'radial-gradient(circle at top, rgba(0,229,186,0.14), transparent 28%), radial-gradient(circle at bottom right, rgba(0,128,255,0.12), transparent 24%), linear-gradient(145deg, #edf4f7 0%, #f8fbfd 46%, #eef8f4 100%)'
           : 'radial-gradient(circle at top, rgba(0,229,186,0.08), transparent 28%), radial-gradient(circle at bottom right, rgba(0,128,255,0.08), transparent 24%), linear-gradient(145deg, #050b12 0%, #09121f 46%, #071713 100%)',
       }}
     >
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full items-center justify-center">
+      <div className="mx-auto flex min-h-[calc(100vh-7rem)] w-full items-start justify-center sm:min-h-[calc(100vh-5rem)] sm:items-center">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className={`relative w-full ${maxWidthClassName}`}
@@ -76,15 +77,13 @@ export function AuthShell({
 
             <div className="mb-8 text-center">
               <Link className="inline-flex flex-col items-center gap-2" href="/">
-                <span
-                  className="text-3xl font-black tracking-tight"
-                  style={{
-                    background: 'linear-gradient(135deg, rgb(0,229,186), rgb(0,201,167))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                  }}
-                >
-                  ZSTREAM
+                <span className="inline-flex items-end gap-3 overflow-visible rounded-2xl px-4 py-3 text-3xl font-black tracking-tight" style={{ background: isLight ? 'rgba(0,229,186,0.12)' : 'rgba(0,229,186,0.10)' }}>
+                  <BrandMark alt="Z Meetings" className="h-[1.2em] w-[1.2em] shrink-0 self-center" />
+                  <span
+                    className="brand-gradient-text block pb-[0.08em] leading-[1.1]"
+                  >
+                    Meetings
+                  </span>
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-[0.28em]" style={{ color: isLight ? 'rgba(0,161,127,0.62)' : 'rgba(0,229,186,0.45)' }}>
                   {brandTagline}
@@ -235,15 +234,11 @@ export function PrimaryAction({
 }) {
   return (
     <motion.button
-      className={`flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black transition-all ${className}`.trim()}
+      className={`brand-gradient-button flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black transition-all ${className}`.trim()}
       disabled={disabled}
       onClick={onClick}
-      style={{
-        background: disabled ? 'rgba(0,229,186,0.18)' : 'rgb(0,229,186)',
-        color: disabled ? 'rgba(6,12,20,0.45)' : '#060c14',
-      }}
       type={type}
-      whileHover={disabled ? {} : { scale: 1.01, boxShadow: '0 0 28px rgba(0,229,186,0.22)' }}
+      whileHover={disabled ? {} : { scale: 1.01, boxShadow: '0 0 28px rgba(0,122,106,0.22)' }}
       whileTap={disabled ? {} : { scale: 0.985 }}
     >
       {children}
@@ -284,4 +279,3 @@ export function SecondaryAction({
     </motion.button>
   );
 }
-

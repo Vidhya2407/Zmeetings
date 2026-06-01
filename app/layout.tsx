@@ -6,6 +6,7 @@ import NotificationCenter from '../components/notifications/NotificationCenter';
 import { Toaster } from 'sonner';
 import AuthProvider from '../components/layout/AuthProvider';
 import GlobalQuickControls from '../components/layout/GlobalQuickControls';
+import { auth } from '../lib/auth/auth';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -39,7 +40,9 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -47,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${inter.className} ${inter.variable} bg-dark-base font-sans antialiased`}>
-        <AuthProvider>
+        <AuthProvider session={session}>
           <Toaster position="top-right" richColors closeButton />
           <GlobalQuickControls />
           <main id="main-content">{children}</main>

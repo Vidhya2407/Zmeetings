@@ -3,7 +3,7 @@ import LegalDocument from '@/components/legal/LegalDocument';
 
 export const metadata: Metadata = {
   title: 'Cookie Policy',
-  description: 'Cookie policy for the ZSTREAM beta application.',
+  description: 'Cookie policy for the Z Meetings beta application.',
 };
 
 export default function CookiePolicyPage() {
@@ -12,8 +12,8 @@ export default function CookiePolicyPage() {
       eyebrow={{ en: 'Legal', de: 'Rechtliches' }}
       title={{ en: 'Cookie Policy', de: 'Cookie-Richtlinie' }}
       intro={{
-        en: 'This Cookie Policy explains how ZSTREAM uses cookies and similar technologies in the beta application, including which categories are essential, which are optional, and how you can manage consent.',
-        de: 'Diese Cookie-Richtlinie erklart, wie ZSTREAM in der Beta-Anwendung Cookies und ahnliche Technologien einsetzt, welche Kategorien erforderlich sind, welche optional bleiben und wie Sie Ihre Einwilligung verwalten konnen.',
+        en: 'This Cookie Policy explains how Z Meetings uses cookies and similar technologies in the beta application, including which categories are essential, which are optional, and how you can manage consent.',
+        de: 'Diese Cookie-Richtlinie erklart, wie Z Meetings in der Beta-Anwendung Cookies und ahnliche Technologien einsetzt, welche Kategorien erforderlich sind, welche optional bleiben und wie Sie Ihre Einwilligung verwalten konnen.',
       }}
       lastUpdated={{ en: 'March 27, 2026', de: '27. Marz 2026' }}
       sourceNote={{
@@ -88,10 +88,9 @@ export default function CookiePolicyPage() {
           ],
         },
       ]}
+      showBackButton
     />
   );
 }
-
-
 
 

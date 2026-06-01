@@ -18,6 +18,8 @@ test-results/
 
 *.log
 .tmp-*.log
+.tmp-*/
+.next-stale/
 tmp-*.png
 tmp-*.jpg
 tmp-*.jpeg

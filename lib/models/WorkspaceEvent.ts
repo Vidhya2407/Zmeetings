@@ -23,6 +23,12 @@ const WorkspaceEventSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    timezone: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: null,
+    },
     ownerUserId: {
       type: String,
       required: true,

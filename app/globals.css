@@ -13,6 +13,12 @@
     --color-eco-green-bright: #00eaaf;
     --color-cyan: #00D9FF;
     --color-electric-blue: #0080FF;
+    --brand-gradient-start: #00E5BA;
+    --brand-gradient-mid: #00C9A7;
+    --brand-gradient-end: #007A6A;
+    --brand-gradient: linear-gradient(135deg, var(--brand-gradient-start) 0%, var(--brand-gradient-mid) 40%, var(--brand-gradient-end) 100%);
+    --brand-gradient-disabled: linear-gradient(135deg, rgba(0, 229, 186, 0.26) 0%, rgba(0, 201, 167, 0.22) 40%, rgba(0, 122, 106, 0.18) 100%);
+    --brand-shadow: 0 16px 30px rgba(0, 122, 106, 0.22);
     --blur-glass: 25px;
     --app-bg: #121212;
     --app-bg-alt: #0A0F18;
@@ -108,7 +114,10 @@
   .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.1); }
   .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); }
   .glass-panel { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-  .text-gradient { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: linear-gradient(135deg, var(--color-eco-green-bright), var(--color-cyan)); }
+  .text-gradient { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: var(--brand-gradient); }
+  .brand-gradient-text { background-clip: text; -webkit-background-clip: text; color: transparent; background-image: var(--brand-gradient); }
+  .brand-gradient-button { background: var(--brand-gradient); color: #041110; box-shadow: var(--brand-shadow); }
+  .brand-gradient-button:disabled { background: var(--brand-gradient-disabled); color: rgba(4, 17, 16, 0.45); box-shadow: none; }
   .glow-green { box-shadow: 0 0 20px rgba(0, 229, 186, 0.15), 0 0 40px rgba(0, 229, 186, 0.08); }
   .glow-cyan { box-shadow: 0 0 20px rgba(0, 217, 255, 0.15), 0 0 40px rgba(0, 217, 255, 0.08); }
   .glow-blue { box-shadow: 0 0 20px rgba(0, 128, 255, 0.15), 0 0 40px rgba(0, 128, 255, 0.08); }

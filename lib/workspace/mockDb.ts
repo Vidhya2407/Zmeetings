@@ -162,9 +162,9 @@ const messagesByThread: Record<string, ChatMessage[]> = {
 };
 
 const events: CalendarEvent[] = [
-  { id: 'e1', title: 'Eco Dev Sync', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.02), ownerUserId: 'u5', attendeeUserIds: ['u1', 'u6'], meetingId: 'm3', color: 'blue' },
-  { id: 'e2', title: 'Sustainability Workshop', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.03), ownerUserId: 'u2', attendeeUserIds: ['u1', 'u5'], meetingId: 'm2', color: 'amber' },
-  { id: 'e3', title: 'Board Meeting', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.05), ownerUserId: 'u4', attendeeUserIds: [], meetingId: null, color: 'green' },
+  { id: 'e1', title: 'Eco Dev Sync', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.02), timezone: 'Europe/Berlin', ownerUserId: 'u5', attendeeUserIds: ['u1', 'u6'], meetingId: 'm3', color: 'blue' },
+  { id: 'e2', title: 'Sustainability Workshop', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.03), timezone: 'Europe/Berlin', ownerUserId: 'u2', attendeeUserIds: ['u1', 'u5'], meetingId: 'm2', color: 'amber' },
+  { id: 'e3', title: 'Board Meeting', startsAt: isoPlusDays(1), endsAt: isoPlusDays(1.05), timezone: 'Europe/Berlin', ownerUserId: 'u4', attendeeUserIds: [], meetingId: null, color: 'green' },
 ];
 
 const activity: ActivityItem[] = [
@@ -353,12 +353,13 @@ export function listMessages(threadId: string) {
   return clone(messagesByThread[threadId] ?? []);
 }
 
-export function addMessage(threadId: string, senderUserId: string, body: string) {
+export function addMessage(threadId: string, senderUserId: string, body: string, attachments?: ChatMessage['attachments']) {
   const next: ChatMessage = {
     id: `msg${Object.values(messagesByThread).flat().length + 1}`,
     threadId,
     senderUserId,
     body,
+    attachments: attachments?.length ? attachments : undefined,
     createdAt: new Date().toISOString(),
   };
   if (!messagesByThread[threadId]) {
@@ -367,7 +368,7 @@ export function addMessage(threadId: string, senderUserId: string, body: string)
   messagesByThread[threadId].push(next);
   const thread = threads.find((t) => t.id === threadId);
   if (thread) {
-    thread.lastMessagePreview = body;
+    thread.lastMessagePreview = body.trim() || (attachments?.length === 1 ? attachments[0].name : `Shared ${attachments?.length ?? 0} attachments`);
     thread.updatedAt = next.createdAt;
     thread.unreadCount += 1;
   }

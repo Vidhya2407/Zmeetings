@@ -25,6 +25,7 @@ type ChatThreadDoc = {
 };
 
 type ChatMessageDoc = {
+  attachments?: ChatMessage['attachments'];
   _id: string;
   body: string;
   createdAt?: Date | string;
@@ -69,8 +70,22 @@ function serializeMessage(doc: ChatMessageDoc): ChatMessage {
     threadId: doc.threadId,
     senderUserId: doc.senderUserId,
     body: doc.body,
+    attachments: doc.attachments?.length ? doc.attachments : undefined,
     createdAt: toIsoDate(doc.createdAt),
   };
+}
+
+function buildThreadPreview(body: string, attachments?: ChatMessage['attachments']) {
+  const trimmedBody = body.trim();
+  if (trimmedBody) return trimmedBody;
+  if (!attachments?.length) return 'New message';
+  if (attachments.length === 1) {
+    const [attachment] = attachments;
+    if (attachment.kind === 'image') return `Shared image: ${attachment.name}`;
+    if (attachment.kind === 'video') return `Shared video: ${attachment.name}`;
+    return `Shared file: ${attachment.name}`;
+  }
+  return `Shared ${attachments.length} attachments`;
 }
 
 async function withChatDataSource<T>(mongoFn: () => Promise<T>, mockFn: () => T): Promise<DataSourceResult<T>> {
@@ -148,6 +163,7 @@ async function ensureChatSeeded() {
                 threadId: message.threadId,
                 senderUserId: message.senderUserId,
                 body: message.body,
+                attachments: message.attachments ?? [],
                 createdAt: new Date(message.createdAt),
               },
             },
@@ -204,7 +220,12 @@ export async function listMessagesRepo(threadId: string) {
   );
 }
 
-export async function addMessageRepo(threadId: string, senderUserId: string, body: string) {
+export async function addMessageRepo(
+  threadId: string,
+  senderUserId: string,
+  body: string,
+  attachments?: ChatMessage['attachments'],
+) {
   return withChatDataSource(
     async () => {
       const thread = await ChatThreadModel.findById(threadId);
@@ -215,16 +236,17 @@ export async function addMessageRepo(threadId: string, senderUserId: string, bod
         threadId,
         senderUserId,
         body,
+        attachments: attachments ?? [],
         createdAt: new Date(),
       });
 
-      thread.lastMessagePreview = body;
+      thread.lastMessagePreview = buildThreadPreview(body, attachments);
       thread.unreadCount = Math.max(0, (thread.unreadCount ?? 0) + 1);
       await thread.save();
 
       return serializeMessage(message.toObject({ depopulate: true }) as ChatMessageDoc);
     },
-    () => addMockMessage(threadId, senderUserId, body),
+    () => addMockMessage(threadId, senderUserId, body, attachments),
   );
 }
 

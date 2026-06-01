@@ -168,11 +168,9 @@ function MeetingsAttendeePageContent() {
             <span>{isGerman ? 'Bitte melde dich an, um dieses Meeting zu oeffnen.' : 'Please sign in to open this meeting.'}</span>
             <Link
               href={`/login?next=${encodeURIComponent(`/meetings/attendee?meetingId=${activeMeetingId}`)}`}
-              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              className="brand-gradient-button rounded-full border px-3 py-1.5 text-xs font-semibold"
               style={{
-                borderColor: isLight ? 'rgba(220,38,38,0.28)' : 'rgba(248,113,113,0.40)',
-                background: isLight ? 'rgba(255,255,255,0.84)' : 'rgba(255,255,255,0.08)',
-                color: isLight ? '#991b1b' : '#fee2e2',
+                borderColor: 'rgba(0,201,167,0.24)',
               }}
             >
               {isGerman ? 'Anmelden' : 'Sign in'}

@@ -64,35 +64,43 @@ export default function LegalDocument({ eyebrow, title, intro, lastUpdated, sour
   };
 
   return (
-    <section className="legal-document-scope min-h-screen px-6 py-12" style={{ background: pageBg, color: titleColor }}>
-      <div className="mx-auto w-full max-w-4xl space-y-8">
-        <header className="space-y-4 rounded-3xl border p-8 shadow-[0_24px_80px_rgba(2,8,23,0.14)]" style={{ background: headerBg, borderColor: border }}>
-          <p className="text-xs font-black uppercase tracking-[0.28em]" style={{ color: accentColor }}>{pick(language, eyebrow)}</p>
-          <h1 className="text-3xl font-black sm:text-4xl" style={{ color: titleColor }}>{pick(language, title)}</h1>
-          <p className="text-sm leading-7" style={{ color: bodyColor }}>{pick(language, intro)}</p>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: mutedColor }}>
+    <section className="legal-document-scope min-h-screen px-6 py-14 md:px-8 md:py-20" style={{ background: pageBg, color: titleColor }}>
+      <div className="mx-auto w-full max-w-[52rem] space-y-10">
+        <header className="space-y-6 rounded-[34px] border p-8 shadow-[0_24px_80px_rgba(2,8,23,0.14)] md:p-12" style={{ background: headerBg, borderColor: border }}>
+          <p className="inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em]" style={{ color: accentColor, borderColor: isLight ? 'rgba(4,120,87,0.18)' : 'rgba(52,211,153,0.2)', background: isLight ? 'rgba(236,253,245,0.92)' : 'rgba(16,185,129,0.12)' }}>{pick(language, eyebrow)}</p>
+          <h1 className="max-w-[18ch] text-[2.2rem] font-black tracking-[-0.04em] sm:text-[3rem]" style={{ color: titleColor }}>{pick(language, title)}</h1>
+          <p className="max-w-3xl text-[15px] leading-8 md:text-base" style={{ color: bodyColor }}>{pick(language, intro)}</p>
+          <p className="pt-1 text-[11px] font-semibold uppercase tracking-[0.22em]" style={{ color: mutedColor }}>
             {language === 'de' ? 'Zuletzt aktualisiert' : 'Last updated'}: {pick(language, lastUpdated)}
           </p>
-          {sourceNote ? <p className="text-xs leading-6" style={{ color: mutedColor }}>{pick(language, sourceNote)}</p> : null}
+          {sourceNote ? (
+            <div className="rounded-[24px] border px-5 py-5" style={{ background: insetBg, borderColor: border }}>
+              <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: mutedColor }}>
+                {language === 'de' ? 'Quelle' : 'Source note'}
+              </p>
+              <p className="mt-2 text-sm leading-7" style={{ color: bodyColor }}>{pick(language, sourceNote)}</p>
+            </div>
+          ) : null}
         </header>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {sections.map((section) => (
-            <section key={pick(language, section.title)} className="rounded-3xl border p-6" style={{ background: cardBg, borderColor: border }}>
-              <h2 className="text-xl font-black" style={{ color: titleColor }}>{pick(language, section.title)}</h2>
+            <section key={pick(language, section.title)} className="rounded-[30px] border p-7 md:p-8" style={{ background: cardBg, borderColor: border, boxShadow: isLight ? '0 16px 40px rgba(15,23,42,0.05)' : '0 18px 42px rgba(0,0,0,0.16)' }}>
+              <div className="mb-4 h-1.5 w-20 rounded-full" style={{ background: isLight ? 'linear-gradient(90deg,#10b981,#06b6d4)' : 'linear-gradient(90deg,#34d399,#22d3ee)' }} />
+              <h2 className="text-[1.45rem] font-black tracking-[-0.02em]" style={{ color: titleColor }}>{pick(language, section.title)}</h2>
               {section.paragraphs ? (
-                <div className="mt-4 space-y-3">
+                <div className="mt-5 space-y-4">
                   {section.paragraphs.map((paragraph) => (
-                    <p key={pick(language, paragraph)} className="text-sm leading-7" style={{ color: bodyColor }}>
+                    <p key={pick(language, paragraph)} className="text-[15px] leading-8 md:text-base" style={{ color: bodyColor }}>
                       {pick(language, paragraph)}
                     </p>
                   ))}
                 </div>
               ) : null}
               {section.bullets ? (
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-5 space-y-4">
                   {section.bullets.map((bullet) => (
-                    <li key={pick(language, bullet)} className="rounded-2xl border px-4 py-3 text-sm leading-6" style={{ background: insetBg, borderColor: border, color: bodyColor }}>
+                    <li key={pick(language, bullet)} className="rounded-[22px] border px-5 py-4 text-[15px] leading-7 md:py-5" style={{ background: insetBg, borderColor: border, color: bodyColor }}>
                       {pick(language, bullet)}
                     </li>
                   ))}
@@ -103,14 +111,12 @@ export default function LegalDocument({ eyebrow, title, intro, lastUpdated, sour
         </div>
 
         {showBackButton ? (
-          <div className="flex justify-center pt-2">
+          <div className="flex justify-center pb-4 pt-8 md:pb-8 md:pt-10">
             <button
-              className="rounded-2xl border px-5 py-3 text-sm font-black transition hover:translate-y-[-1px]"
+              className="brand-gradient-button rounded-[20px] border px-6 py-3.5 text-sm font-black uppercase tracking-[0.14em] transition hover:translate-y-[-1px]"
               onClick={handleBack}
               style={{
-                background: 'rgb(0,229,186)',
-                borderColor: 'rgb(0,229,186)',
-                color: '#060c14',
+                borderColor: 'rgba(0,229,186,0.4)',
               }}
               type="button"
             >

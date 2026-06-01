@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { fetchJsonWithRetry } from '@/lib/api/fetchJsonWithRetry';
 import {
   DEFAULT_MEETING_USAGE_PROFILE,
@@ -146,6 +147,7 @@ function replaceTokens(value: string, tokens: Record<string, string>) {
 export default function SustainabilityImpactScreen() {
   const { t, language } = useAppTranslations();
   const router = useRouter();
+  const { status: sessionStatus } = useSession();
   const hydrated = useHydrated(useThemeStore);
   const { theme } = useThemeStore();
   const isLight = (hydrated ? theme : 'dark') === 'light';
@@ -171,6 +173,17 @@ export default function SustainabilityImpactScreen() {
   };
 
   React.useEffect(() => {
+    if (sessionStatus === 'unauthenticated') {
+      router.replace(`/login?next=${encodeURIComponent('/impact')}`);
+    }
+  }, [router, sessionStatus]);
+
+  React.useEffect(() => {
+    if (sessionStatus !== 'authenticated') {
+      setLoading(sessionStatus === 'loading');
+      return undefined;
+    }
+
     let mounted = true;
 
     async function loadImpactData() {
@@ -201,7 +214,7 @@ export default function SustainabilityImpactScreen() {
     return () => {
       mounted = false;
     };
-  }, [loadErrorText, router]);
+  }, [loadErrorText, router, sessionStatus]);
 
   const handleProjectSelect = React.useCallback((projectId: string) => {
     setSelectedProjectId((currentProjectId) => (
@@ -277,10 +290,30 @@ export default function SustainabilityImpactScreen() {
 
   const locale = language === 'de' ? 'de-DE' : 'en-US';
 
+  if (sessionStatus !== 'authenticated') {
+    return (
+      <div className="mx-auto max-w-[1240px] space-y-6 md:space-y-8">
+        <section>
+          <div className="rounded-3xl border px-6 py-4" style={{ background: panel, borderColor: border }}>
+            <p className="text-xs font-black uppercase tracking-[0.16em]" style={{ color: 'rgb(0,229,186)' }}>
+              {t('workspace.impact.eyebrow', 'Sustainability Impact')}
+            </p>
+            <h2 className="mt-2 text-2xl font-black leading-tight" style={{ color: heading }}>
+              {t('workspace.impact.title', 'Meeting impact, credits, and resource estimates')}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6" style={{ color: body }}>
+              {t('workspace.impact.loading', 'Loading impact data...')}
+            </p>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1240px] space-y-6 md:space-y-8">
       <section>
-        <div className="rounded-3xl border p-4 md:p-5" style={{ background: panel, borderColor: border }}>
+        <div className="rounded-3xl border px-6 py-4" style={{ background: panel, borderColor: border }}>
           <p className="text-xs font-black uppercase tracking-[0.16em]" style={{ color: 'rgb(0,229,186)' }}>
             {t('workspace.impact.eyebrow', 'Sustainability Impact')}
           </p>
@@ -299,7 +332,7 @@ export default function SustainabilityImpactScreen() {
         </section>
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <ImpactMetric
           isLight={isLight}
           label={t('workspace.impact.metrics.emissions', 'Meeting emissions')}
@@ -343,14 +376,14 @@ export default function SustainabilityImpactScreen() {
         />
       </section>
 
-      <section className="rounded-3xl border p-4 md:p-5" style={{ background: panel, borderColor: border }}>
+      <section className="rounded-3xl border px-6 py-5" style={{ background: panel, borderColor: border }}>
         <h3 className="text-xl font-black leading-tight" style={{ color: heading }}>
           {t('workspace.impact.portfolio.title', 'Project impact details')}
         </h3>
-        <p className="mt-1 text-sm leading-6" style={{ color: body }}>
+        <p className="mt-2 text-sm leading-6" style={{ color: body }}>
           {t('workspace.impact.portfolio.subtitle', 'Open a project, then open a meeting to inspect carbon, water, e-waste, credits, and calculation logic.')}
         </p>
-        <div className="mt-5 space-y-3">
+        <div className="mt-4 space-y-3">
           {projectSummaries.map((project) => {
             const selected = selectedProjectId === project.id;
             const projectMeetings = meetingImpacts.filter((meeting) => meeting.projectId === project.id);
@@ -369,21 +402,21 @@ export default function SustainabilityImpactScreen() {
                 <button
                   aria-expanded={selected}
                   aria-label={replaceTokens(t('workspace.impact.portfolio.openProject', 'Open {project} impact details'), { project: project.name })}
-                  className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors md:px-5"
+                  className="flex w-full items-center justify-between gap-5 px-5 py-4 text-left transition-colors"
                   onClick={() => handleProjectSelect(project.id)}
                   type="button"
                 >
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1 pr-4">
                     <span className="block truncate text-sm font-black" style={{ color: heading }}>{project.name}</span>
-                    <span className="mt-1 block text-xs font-bold" style={{ color: muted }}>
+                    <span className="mt-1.5 block text-xs font-bold" style={{ color: muted }}>
                       {replaceTokens(t('workspace.impact.portfolio.meta', '{count} meetings | {credits} estimated credits'), {
                         count: `${project.meetingCount}`,
                         credits: formatCredits(projectCredits),
                       })}
                     </span>
                   </span>
-                  <span className="flex shrink-0 items-center gap-3">
-                    <span className="text-base font-black" style={{ color: '#f97316' }}>{formatKgCompact(project.emittedKg)}</span>
+                  <span className="flex min-w-[156px] shrink-0 items-center justify-end gap-3">
+                    <span className="w-[112px] text-right text-base font-black tabular-nums" style={{ color: '#f97316' }}>{formatKgCompact(project.emittedKg)}</span>
                     <span className="grid h-8 w-8 place-items-center rounded-full border text-lg font-black" style={{ borderColor: border, color: heading }}>
                       {selected ? '-' : '+'}
                     </span>
@@ -391,15 +424,15 @@ export default function SustainabilityImpactScreen() {
                 </button>
 
                 {selected ? (
-                  <div className="border-t px-4 py-4 md:px-5" style={{ background: panel, borderColor: border }}>
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="border-t px-5 py-5" style={{ background: panel, borderColor: border }}>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                       <ImpactDetailMetric isLight={isLight} label={t('workspace.impact.table.carbon', 'Carbon')} tone="#f97316" value={formatKg(project.emittedKg)} />
                       <ImpactDetailMetric isLight={isLight} label={t('workspace.impact.table.water', 'Water')} tone="#0ea5e9" value={formatLiters(projectWaterLiters)} />
                       <ImpactDetailMetric isLight={isLight} label={t('workspace.impact.table.ewaste', 'E-waste')} tone="#ec4899" value={formatEwaste(projectEWasteGrams)} />
                       <ImpactDetailMetric isLight={isLight} label={t('workspace.impact.table.credits', 'Est. credits')} tone="#10b981" value={formatCredits(projectCredits)} />
                     </div>
 
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 space-y-3">
                       <p className="text-xs font-black uppercase tracking-[0.14em]" style={{ color: muted }}>
                         {t('workspace.impact.perMeeting.title', 'Meeting impact breakdown')}
                       </p>
@@ -463,7 +496,7 @@ function ImpactMetric({
   const [infoOpen, setInfoOpen] = React.useState(false);
 
   return (
-    <div className="relative rounded-2xl border p-3.5" style={{ background: isLight ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.04)', borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)' }}>
+    <div className="relative min-h-[104px] rounded-2xl border p-4" style={{ background: isLight ? 'rgba(255,255,255,0.86)' : 'rgba(255,255,255,0.04)', borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)' }}>
       {info ? (
         <button
           aria-expanded={infoOpen}
@@ -482,8 +515,8 @@ function ImpactMetric({
         </button>
       ) : null}
       <p className="pr-8 text-xs font-black uppercase tracking-[0.14em]" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>{label}</p>
-      <p className="mt-2 break-words text-2xl font-black leading-none" style={{ color: tone }}>{value}</p>
-      <p className="mt-2 text-xs font-semibold" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>{note}</p>
+      <p className="mt-2 break-words text-2xl font-black leading-none tabular-nums" style={{ color: tone }}>{value}</p>
+      <p className="mt-1.5 text-xs font-semibold" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>{note}</p>
       {info && infoOpen ? (
         <div
           className="absolute right-3 top-11 z-20 w-[min(18rem,calc(100vw-3rem))] rounded-2xl border p-3 shadow-xl"
@@ -496,9 +529,8 @@ function ImpactMetric({
           <p className="text-sm font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>{info.title}</p>
           <p className="mt-2 text-xs font-semibold leading-5">{info.body}</p>
           <button
-            className="mt-3 h-8 rounded-full px-4 text-xs font-black"
+            className="brand-gradient-button mt-3 h-8 rounded-full px-4 text-xs font-black"
             onClick={() => setInfoOpen(false)}
-            style={{ background: 'rgb(0,229,186)', color: '#061018' }}
             type="button"
           >
             {info.close}
@@ -512,14 +544,14 @@ function ImpactMetric({
 function ImpactDetailMetric({ isLight, label, tone, value }: { isLight: boolean; label: string; tone: string; value: string }) {
   return (
     <div
-      className="rounded-2xl border px-3 py-3"
+      className="min-h-[92px] rounded-2xl border px-4 py-4"
       style={{
         background: isLight ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.045)',
         borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
       }}
     >
       <p className="text-xs font-black uppercase tracking-[0.12em]" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>{label}</p>
-      <p className="mt-1 break-words text-lg font-black" style={{ color: tone }}>{value}</p>
+      <p className="mt-1.5 break-words text-lg font-black tabular-nums" style={{ color: tone }}>{value}</p>
     </div>
   );
 }
@@ -587,18 +619,18 @@ function MeetingCalculationDetails({
 
   return (
     <details className="group overflow-hidden rounded-2xl border" style={{ borderColor: border, background: formulaBackground }}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-        <span className="min-w-0">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-5 px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1 pr-4">
           <span className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="min-w-0 truncate text-sm font-black" style={{ color: heading }}>{meeting.title}</span>
             <span className="rounded-full px-2 py-0.5 text-xs font-black" style={{ background: meeting.isTracked ? 'rgba(16,185,129,0.14)' : 'rgba(14,165,233,0.14)', color: meeting.isTracked ? '#10b981' : '#0ea5e9' }}>
               {sourceLabel}
             </span>
           </span>
-          <span className="mt-1 block text-xs font-semibold" style={{ color: muted }}>{dateLabel} | {meeting.participants} {labels.participants}</span>
+          <span className="mt-1.5 block text-xs font-semibold" style={{ color: muted }}>{dateLabel} | {meeting.participants} {labels.participants}</span>
         </span>
-        <span className="flex shrink-0 items-center gap-3">
-          <span className="hidden text-sm font-black sm:block" style={{ color: body }}>{formatKg(meeting.emittedKg)}</span>
+        <span className="flex min-w-[156px] shrink-0 items-center justify-end gap-3">
+          <span className="hidden w-[112px] text-right text-sm font-black tabular-nums sm:block" style={{ color: body }}>{formatKg(meeting.emittedKg)}</span>
           <span className="grid h-8 w-8 place-items-center rounded-full border text-lg font-black" style={{ borderColor: border, color: heading }}>
             <span className="group-open:hidden">+</span>
             <span className="hidden group-open:block">-</span>
@@ -606,8 +638,8 @@ function MeetingCalculationDetails({
         </span>
       </summary>
 
-      <div className="border-t px-4 py-4" style={{ borderColor: border }}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="border-t px-5 py-5" style={{ borderColor: border }}>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <ImpactDetailMetric isLight={isLight} label={labels.carbon} tone="#f97316" value={formatKg(meeting.emittedKg)} />
           <ImpactDetailMetric isLight={isLight} label={labels.water} tone="#0ea5e9" value={formatLiters(meeting.waterLiters)} />
           <ImpactDetailMetric isLight={isLight} label={labels.ewaste} tone="#ec4899" value={formatEwaste(meeting.eWasteGrams)} />
@@ -615,7 +647,7 @@ function MeetingCalculationDetails({
         </div>
 
         <p className="mt-4 text-xs font-black uppercase tracking-[0.14em]" style={{ color: muted }}>{calculationLabel}</p>
-        <div className="mt-2 grid gap-2 lg:grid-cols-2">
+        <div className="mt-2 grid gap-3 lg:grid-cols-2">
           <FormulaLine border={border} heading={heading} isLight={isLight} label={labels.carbon} value={emissionFormula} />
           <FormulaLine
             border={border}

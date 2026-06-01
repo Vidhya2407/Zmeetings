@@ -42,14 +42,14 @@ export default function ActivityFeed({
   const locale = language === 'de' ? 'de-DE' : 'en-US';
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {items.map((item) => {
         const localized = localizeActivityText(item, t);
 
         return (
           <article
             key={item.id}
-            className="rounded-2xl border p-3"
+            className="rounded-[26px] border px-4 py-4"
             style={{
               background: item.read
                 ? (isLight ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.03)')
@@ -59,9 +59,9 @@ export default function ActivityFeed({
                 : 'rgba(0,229,186,0.25)',
             }}
           >
-            <div className="flex items-start gap-3">
+            <div className="grid gap-3 md:grid-cols-[auto,minmax(0,1fr),auto] md:items-center">
               <div
-                className="mt-0.5 flex h-8 min-w-8 shrink-0 items-center justify-center rounded-xl px-1 text-sm font-black"
+                className="inline-flex w-fit shrink-0 items-center justify-center self-start rounded-xl px-2 py-1 text-xs font-black"
                 style={{
                   background: 'rgba(0,229,186,0.16)',
                   color: 'rgb(0,229,186)',
@@ -71,19 +71,14 @@ export default function ActivityFeed({
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p
-                    className="text-base font-black"
-                    style={{ color: isLight ? '#0f172a' : '#ffffff', hyphens: 'manual', overflowWrap: 'normal', wordBreak: 'normal' }}
-                  >
-                    {localized.title}
-                  </p>
-                  {!item.read ? (
-                    <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-sm font-black text-[#041110]">{t('workspace.activity.new', 'New')}</span>
-                  ) : null}
-                </div>
                 <p
-                  className="mt-1 text-base leading-7"
+                  className="text-base font-black leading-6"
+                  style={{ color: isLight ? '#0f172a' : '#ffffff', hyphens: 'manual', overflowWrap: 'normal', wordBreak: 'normal' }}
+                >
+                  {localized.title}
+                </p>
+                <p
+                  className="mt-1.5 text-[15px] leading-6"
                   style={{ color: isLight ? '#475569' : '#cbd5e1', hyphens: 'manual', overflowWrap: 'normal', wordBreak: 'normal' }}
                 >
                   {localized.body}
@@ -91,9 +86,9 @@ export default function ActivityFeed({
                 <p className="mt-1 text-sm" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
                   {new Date(item.createdAt).toLocaleString(locale)}
                 </p>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex flex-wrap items-center gap-2">
                   <button
-                    className="rounded-lg border px-2.5 py-1 text-sm font-bold"
+                    className="rounded-lg border px-3 py-2 text-sm font-bold leading-none"
                     onClick={() => onOpenContext(item)}
                     style={{
                       borderColor: isLight ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.12)',
@@ -105,7 +100,7 @@ export default function ActivityFeed({
                   </button>
                   {!item.read ? (
                     <button
-                      className="rounded-lg border px-2.5 py-1 text-sm font-bold"
+                      className="rounded-lg border px-3 py-2 text-sm font-bold leading-none"
                       onClick={() => onMarkRead(item.id)}
                       style={{ borderColor: 'rgba(0,229,186,0.35)', color: 'rgb(0,229,186)' }}
                       type="button"
@@ -115,6 +110,13 @@ export default function ActivityFeed({
                   ) : null}
                 </div>
               </div>
+              {!item.read ? (
+                <div className="justify-self-start md:justify-self-end">
+                  <span className="inline-flex items-center rounded-full bg-emerald-500 px-2 py-1 text-sm font-black leading-none text-[#041110]">
+                    {t('workspace.activity.new', 'New')}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </article>
         );

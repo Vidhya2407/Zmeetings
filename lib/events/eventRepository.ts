@@ -26,6 +26,7 @@ type WorkspaceEventDoc = {
   ownerUserId: string;
   startsAt: Date | string;
   title: string;
+  timezone?: string | null;
 };
 
 declare global {
@@ -56,6 +57,7 @@ function serializeEvent(doc: WorkspaceEventDoc): CalendarEvent {
     title: doc.title,
     startsAt: toIsoDate(doc.startsAt),
     endsAt: toIsoDate(doc.endsAt),
+    timezone: doc.timezone ?? null,
     ownerUserId: doc.ownerUserId,
     attendeeUserIds: doc.attendeeUserIds ?? [],
     meetingId: doc.meetingId ?? null,
@@ -104,6 +106,7 @@ async function ensureEventSeeded() {
                 title: event.title,
                 startsAt: new Date(event.startsAt),
                 endsAt: new Date(event.endsAt),
+                timezone: event.timezone ?? null,
                 ownerUserId: event.ownerUserId,
                 attendeeUserIds: event.attendeeUserIds ?? [],
                 meetingId: event.meetingId,
@@ -157,6 +160,7 @@ export async function createEventRepo(input: EventCreateInput) {
         title: input.title,
         startsAt: new Date(input.startsAt),
         endsAt: new Date(input.endsAt),
+        timezone: input.timezone ?? null,
         ownerUserId: input.ownerUserId,
         attendeeUserIds: input.attendeeUserIds ?? [],
         meetingId: input.meetingId,
@@ -182,6 +186,9 @@ export async function patchEventRepo(eventId: string, updates: EventPatchInput) 
       }
       if (typeof updates.endsAt === 'string') {
         event.endsAt = toMongoDate(updates.endsAt, event.endsAt as Date);
+      }
+      if (typeof updates.timezone !== 'undefined') {
+        event.timezone = typeof updates.timezone === 'string' ? updates.timezone : null;
       }
       if (typeof updates.ownerUserId === 'string') {
         event.ownerUserId = updates.ownerUserId;

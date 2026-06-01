@@ -46,15 +46,67 @@ export default function GlobalQuickControls({ mode = 'auto', className = '' }: G
   const panelBorder = isLight ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.16)';
   const textMuted = isLight ? '#475569' : '#94a3b8';
   const resolvedMode = mode === 'auto' ? (isWorkspacePath(pathname) ? 'hidden' : 'floating') : mode;
+  const languageRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const themeRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+
+  const languageOptions = [
+    { id: 'en', label: 'English', short: 'EN' },
+    { id: 'de', label: 'Deutsch', short: 'DE' },
+  ] as const;
+  const themeOptions = [
+    { id: 'light', label: t('workspace.profile.light', 'Light'), icon: <SunIcon /> },
+    { id: 'dark', label: t('workspace.profile.dark', 'Dark'), icon: <MoonIcon /> },
+  ] as const;
 
   if (resolvedMode === 'hidden') {
     return null;
   }
 
+  const quickControlBaseClass = 'rounded-xl border px-3 py-1.5 text-sm font-black tracking-[0.06em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(0,229,186)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent hover:border-[rgba(0,229,186,0.35)] hover:bg-[rgba(0,229,186,0.12)] hover:text-[rgb(0,229,186)]';
+
   const layoutClass =
     resolvedMode === 'floating'
-      ? 'fixed right-4 top-4 z-[80] rounded-2xl border px-2 py-1.5 shadow-xl'
-      : 'rounded-2xl border px-2 py-1.5 shadow-xl';
+      ? 'fixed right-4 top-4 z-[80] rounded-[20px] border px-3 py-2 shadow-xl'
+      : 'rounded-[20px] border px-3 py-2 shadow-xl';
+
+  const moveFocus = (
+    refs: React.MutableRefObject<Array<HTMLButtonElement | null>>,
+    nextIndex: number,
+  ) => {
+    refs.current[nextIndex]?.focus();
+  };
+
+  const getNextIndex = (currentIndex: number, optionCount: number, direction: -1 | 1) => (
+    (currentIndex + direction + optionCount) % optionCount
+  );
+
+  const handleRadioGroupKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+    refs: React.MutableRefObject<Array<HTMLButtonElement | null>>,
+    optionCount: number,
+    onSelect: (nextIndex: number) => void,
+  ) => {
+    let nextIndex: number | null = null;
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = getNextIndex(index, optionCount, -1);
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = getNextIndex(index, optionCount, 1);
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = optionCount - 1;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    onSelect(nextIndex);
+    moveFocus(refs, nextIndex);
+  };
 
   return (
     <div
@@ -67,58 +119,84 @@ export default function GlobalQuickControls({ mode = 'auto', className = '' }: G
         WebkitBackdropFilter: 'blur(12px)',
       }}
     >
-      <div className="flex items-center gap-1">
-        <button
-          className="rounded-md px-2.5 py-1 text-sm font-black tracking-[0.06em] transition-colors"
-          onClick={() => setLanguage('en')}
-          style={{
-            background: resolvedLanguage === 'en' ? 'rgba(0,229,186,0.2)' : 'transparent',
-            color: resolvedLanguage === 'en' ? 'rgb(0,229,186)' : textMuted,
-          }}
-          type="button"
-        >
-          EN
-        </button>
-        <button
-          className="rounded-md px-2.5 py-1 text-sm font-black tracking-[0.06em] transition-colors"
-          onClick={() => setLanguage('de')}
-          style={{
-            background: resolvedLanguage === 'de' ? 'rgba(0,229,186,0.2)' : 'transparent',
-            color: resolvedLanguage === 'de' ? 'rgb(0,229,186)' : textMuted,
-          }}
-          type="button"
-        >
-          DE
-        </button>
+      <div className="flex items-center gap-1.5">
+        <div aria-label={t('workspace.profile.language', 'Language')} className="flex items-center gap-1.5" role="radiogroup">
+          {languageOptions.map((option, index) => {
+            const selected = resolvedLanguage === option.id;
+            return (
+              <button
+                key={option.id}
+                ref={(element) => {
+                  languageRefs.current[index] = element;
+                }}
+                aria-checked={selected}
+                aria-label={option.label}
+                className={`${quickControlBaseClass} bg-[var(--quick-bg)] border-[var(--quick-border)] text-[var(--quick-color)] hover:bg-[var(--quick-hover-bg)] hover:border-[var(--quick-hover-border)] hover:text-[var(--quick-hover-color)]`}
+                onClick={() => setLanguage(option.id)}
+                onKeyDown={(event) => {
+                  handleRadioGroupKeyDown(event, index, languageRefs, languageOptions.length, (nextIndex) => {
+                    setLanguage(languageOptions[nextIndex].id);
+                  });
+                }}
+                role="radio"
+                style={{
+                  '--quick-bg': selected ? 'rgba(0,229,186,0.2)' : 'transparent',
+                  '--quick-border': selected ? 'rgba(0,229,186,0.28)' : 'transparent',
+                  '--quick-color': selected ? 'rgb(0,229,186)' : textMuted,
+                  '--quick-hover-bg': 'rgba(0,229,186,0.12)',
+                  '--quick-hover-border': 'rgba(0,229,186,0.35)',
+                  '--quick-hover-color': 'rgb(0,229,186)',
+                } as React.CSSProperties}
+                tabIndex={selected ? 0 : -1}
+                title={option.label}
+                type="button"
+              >
+                {option.short}
+              </button>
+            );
+          })}
+        </div>
         <span
           aria-hidden
           className="mx-0.5 h-4 w-px"
           style={{ background: isLight ? 'rgba(15,23,42,0.14)' : 'rgba(255,255,255,0.2)' }}
         />
-        <button
-          aria-label={t('workspace.profile.light', 'Light')}
-          className="flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-black tracking-[0.06em] transition-colors"
-          onClick={() => setTheme('light')}
-          style={{
-            background: resolvedTheme === 'light' ? 'rgba(0,229,186,0.2)' : 'transparent',
-            color: resolvedTheme === 'light' ? 'rgb(0,229,186)' : textMuted,
-          }}
-          type="button"
-        >
-          <SunIcon />
-        </button>
-        <button
-          aria-label={t('workspace.profile.dark', 'Dark')}
-          className="flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-black tracking-[0.06em] transition-colors"
-          onClick={() => setTheme('dark')}
-          style={{
-            background: resolvedTheme === 'dark' ? 'rgba(0,229,186,0.2)' : 'transparent',
-            color: resolvedTheme === 'dark' ? 'rgb(0,229,186)' : textMuted,
-          }}
-          type="button"
-        >
-          <MoonIcon />
-        </button>
+        <div aria-label={t('workspace.profile.theme', 'Theme')} className="flex items-center gap-1.5" role="radiogroup">
+          {themeOptions.map((option, index) => {
+            const selected = resolvedTheme === option.id;
+            return (
+              <button
+                key={option.id}
+                ref={(element) => {
+                  themeRefs.current[index] = element;
+                }}
+                aria-checked={selected}
+                aria-label={option.label}
+                className={`flex items-center justify-center ${quickControlBaseClass} bg-[var(--quick-bg)] border-[var(--quick-border)] text-[var(--quick-color)] hover:bg-[var(--quick-hover-bg)] hover:border-[var(--quick-hover-border)] hover:text-[var(--quick-hover-color)]`}
+                onClick={() => setTheme(option.id)}
+                onKeyDown={(event) => {
+                  handleRadioGroupKeyDown(event, index, themeRefs, themeOptions.length, (nextIndex) => {
+                    setTheme(themeOptions[nextIndex].id);
+                  });
+                }}
+                role="radio"
+                style={{
+                  '--quick-bg': selected ? 'rgba(0,229,186,0.2)' : 'transparent',
+                  '--quick-border': selected ? 'rgba(0,229,186,0.28)' : 'transparent',
+                  '--quick-color': selected ? 'rgb(0,229,186)' : textMuted,
+                  '--quick-hover-bg': 'rgba(0,229,186,0.12)',
+                  '--quick-hover-border': 'rgba(0,229,186,0.35)',
+                  '--quick-hover-color': 'rgb(0,229,186)',
+                } as React.CSSProperties}
+                tabIndex={selected ? 0 : -1}
+                title={option.label}
+                type="button"
+              >
+                {option.icon}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

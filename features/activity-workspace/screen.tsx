@@ -71,15 +71,15 @@ export default function ActivityWorkspaceScreen() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1240px] space-y-4 md:space-y-6">
       <section
-        className="rounded-3xl border p-5 md:p-6"
+        className="rounded-3xl border px-6 py-5"
         style={{
           background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)',
           borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
         }}
       >
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-col gap-3">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.16em]" style={{ color: 'rgb(0,229,186)' }}>
               {t('workspace.activity.eyebrow', 'Activity')}
@@ -91,18 +91,17 @@ export default function ActivityWorkspaceScreen() {
               {t('workspace.activity.subtitle', 'Mentions, invite reminders, and meeting updates in one feed.')}
             </p>
           </div>
-          <button
-            className="rounded-xl border px-4 py-2 text-base font-bold"
-            onClick={() => void markAll()}
-            style={{ borderColor: 'rgba(0,229,186,0.35)', color: 'rgb(0,229,186)' }}
-            type="button"
-          >
-            {t('workspace.activity.markAll', 'Mark all read')}
-          </button>
-        </div>
-
-        <div className="mt-4">
-          <FeedFilters isLight={isLight} onChange={setFilter} value={filter} />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <FeedFilters isLight={isLight} onChange={setFilter} value={filter} />
+            <button
+              className="self-start rounded-xl border px-4 py-2 text-sm font-bold md:self-auto"
+              onClick={() => void markAll()}
+              style={{ borderColor: 'rgba(0,229,186,0.35)', color: 'rgb(0,229,186)' }}
+              type="button"
+            >
+              {t('workspace.activity.markAll', 'Mark all read')}
+            </button>
+          </div>
         </div>
       </section>
 

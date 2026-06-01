@@ -132,9 +132,9 @@ export default function PeopleWorkspaceScreen() {
   }, [pushNotification, router, t]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <section
-        className="rounded-3xl border p-5 md:p-6"
+        className="rounded-3xl border p-6"
         style={{
           background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)',
           borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -148,15 +148,15 @@ export default function PeopleWorkspaceScreen() {
             <h2 className="mt-2 text-3xl font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
               {t('workspace.people.title', 'Meet the Community')}
             </h2>
-            <p className="mt-2 text-base leading-7" style={{ color: isLight ? '#475569' : '#9ca3af' }}>
+            <p className="mt-3 text-base leading-7" style={{ color: isLight ? '#475569' : '#9ca3af' }}>
               {t('workspace.people.subtitle', 'Find teammates, check presence, and invite people into meetings fast.')}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto]">
           <input
-            className="h-11 rounded-xl border px-3 text-base outline-none"
+            className="h-12 rounded-xl border px-4 text-base outline-none"
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={t('workspace.people.searchPlaceholder', 'Search people...')}
             style={{
@@ -167,7 +167,7 @@ export default function PeopleWorkspaceScreen() {
             value={searchQuery}
           />
           <button
-            className="h-11 rounded-xl px-4 text-base font-black"
+            className="h-12 rounded-xl px-4 text-base font-black"
             onClick={() => void loadPeople()}
             style={{ background: 'rgba(0,229,186,0.15)', color: 'rgb(0,229,186)', border: '1px solid rgba(0,229,186,0.3)' }}
             type="button"

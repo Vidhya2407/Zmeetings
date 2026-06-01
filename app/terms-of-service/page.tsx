@@ -3,7 +3,7 @@ import LegalDocument from '@/components/legal/LegalDocument';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'Terms of service for the ZSTREAM beta application.',
+  description: 'Terms of service for the Z Meetings beta application.',
 };
 
 export default function TermsOfServicePage() {
@@ -12,22 +12,22 @@ export default function TermsOfServicePage() {
       eyebrow={{ en: 'Beta Terms', de: 'Beta-Bedingungen' }}
       title={{ en: 'Terms of Service', de: 'Nutzungsbedingungen' }}
       intro={{
-        en: 'These Terms of Service govern access to the ZSTREAM beta application and related Zero-Carbon digital services. By creating an account, signing in, or using the platform, you agree to these beta terms.',
-        de: 'Diese Nutzungsbedingungen regeln den Zugang zur ZSTREAM-Beta-Anwendung und zu damit verbundenen digitalen Diensten von Zero-Carbon. Mit der Registrierung, Anmeldung oder Nutzung der Plattform stimmen Sie diesen Beta-Bedingungen zu.',
+        en: 'These Terms of Service govern access to the Z Meetings beta application and related Zero-Carbon digital services. By creating an account, signing in, or using the platform, you agree to these beta terms.',
+        de: 'Diese Nutzungsbedingungen regeln den Zugang zur Z Meetings-Beta-Anwendung und zu damit verbundenen digitalen Diensten von Zero-Carbon. Mit der Registrierung, Anmeldung oder Nutzung der Plattform stimmen Sie diesen Beta-Bedingungen zu.',
       }}
       lastUpdated={{ en: 'March 27, 2026', de: '27. Marz 2026' }}
       showBackButton
       sourceNote={{
-        en: 'Zero-carbon.de publicly exposes legal navigation for Privacy Policy, Imprint, and GDPR-related information, but no separate public Terms page was accessible in the deployed site shell at the time of review. This Terms page is therefore prepared for the ZSTREAM beta application and aligned to the same Zero-Carbon brand and contact references.',
-        de: 'Zero-carbon.de verweist offentlich auf Datenschutz, Impressum und DSGVO-bezogene Inhalte, jedoch war in der ausgelieferten Site-Hulle keine separate offentliche Terms-Seite zuganglich. Diese Seite wurde daher fur die ZSTREAM-Beta erstellt und an dieselbe Zero-Carbon-Marke sowie dieselben Kontaktangaben angelehnt.',
+        en: 'Zero-carbon.de publicly exposes legal navigation for Privacy Policy, Imprint, and GDPR-related information, but no separate public Terms page was accessible in the deployed site shell at the time of review. This Terms page is therefore prepared for the Z Meetings beta application and aligned to the same Zero-Carbon brand and contact references.',
+        de: 'Zero-carbon.de verweist offentlich auf Datenschutz, Impressum und DSGVO-bezogene Inhalte, jedoch war in der ausgelieferten Site-Hulle keine separate offentliche Terms-Seite zuganglich. Diese Seite wurde daher fur die Z Meetings-Beta erstellt und an dieselbe Zero-Carbon-Marke sowie dieselben Kontaktangaben angelehnt.',
       }}
       sections={[
         {
           title: { en: 'Beta service scope', de: 'Leistungsumfang der Beta' },
           paragraphs: [
             {
-              en: 'ZSTREAM is currently offered as a beta application. Features, content availability, user flows, sustainability metrics, account capabilities, and integrations may change without prior notice while the product is being validated.',
-              de: 'ZSTREAM wird derzeit als Beta-Anwendung angeboten. Funktionen, Inhaltsverfugbarkeit, Nutzerflusse, Nachhaltigkeitsmetriken, Kontofahigkeiten und Integrationen konnen sich wahrend der Produktvalidierung ohne vorherige Ankundigung andern.',
+              en: 'Z Meetings is currently offered as a beta application. Features, content availability, user flows, sustainability metrics, account capabilities, and integrations may change without prior notice while the product is being validated.',
+              de: 'Z Meetings wird derzeit als Beta-Anwendung angeboten. Funktionen, Inhaltsverfugbarkeit, Nutzerflusse, Nachhaltigkeitsmetriken, Kontofahigkeiten und Integrationen konnen sich wahrend der Produktvalidierung ohne vorherige Ankundigung andern.',
             },
             {
               en: 'Some areas of the product may rely on staged, demo, or fallback data during beta. Access to specific features may be limited, interrupted, or withdrawn while we improve reliability and security.',
@@ -116,6 +116,5 @@ export default function TermsOfServicePage() {
     />
   );
 }
-
 
 

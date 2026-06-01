@@ -4,25 +4,32 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import BrandMark from '@/components/branding/BrandMark';
 import { useMeetingCarbonRoom } from '@/hooks/useMeetingCarbonRoom';
 import { useMeetingSfuRoom } from '@/hooks/useMeetingSfuRoom';
 import { useHydrated } from '@/hooks/useHydrated';
 import { fetchJsonWithRetry } from '@/lib/api/fetchJsonWithRetry';
 import { formatCarbonGrams, formatRate } from '@/lib/meetings/carbonCalc';
 import { formatBreakoutAnnouncementType } from '@/lib/meetings/breakoutUi';
+import { useLanguageStore } from '@/lib/stores/languageStore';
+import { useSettingsStore } from '@/lib/stores/settingsStore';
 import { useThemeStore } from '@/lib/stores/themeStore';
 import { useAppTranslations } from '@/lib/utils/translations';
 import NetworkQualityBadge from '@/components/meetings/NetworkQualityBadge';
 import SfuMeetingStage from '@/components/meetings/SfuMeetingStage';
+import Composer from '@/features/chat-workspace/components/Composer';
+import MessagePane from '@/features/chat-workspace/components/MessagePane';
 import type { BreakoutParticipantSeed, BreakoutSessionResponse } from '@/types/domain/breakout';
 import type { MeetingMediaState, MeetingParticipantNetworkDetails } from '@/lib/meetings/carbonCalc';
 import type { NetworkRiskResult } from '@/types/domain/networkRisk';
-import type { Meeting } from '@/types/domain/workspace';
+import type { ChatAttachment, ChatMessage, ChatThread, Meeting } from '@/types/domain/workspace';
 
 export const dynamic = 'force-dynamic';
 
 const DEMO_MEETING_ID = 'm1';
 const ROOM_LEAD_ROLE = 'Room lead';
+const MAX_CHAT_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
+const MAX_CHAT_ATTACHMENTS_PER_MESSAGE = 10;
 const HOST_NAME_BY_ID: Record<string, string> = {
   u1: 'Dr. Sarah Chen',
   u2: 'Marcus Webb',
@@ -47,6 +54,8 @@ type NetworkTone = {
   dot: string;
   label: string;
 };
+
+type LiveSidePanel = 'apps' | 'chat' | null;
 
 function formatClock(date: Date) {
   return new Intl.DateTimeFormat(undefined, {
@@ -169,6 +178,57 @@ function buildLiveMeetingHref(meetingId: string, breakoutSessionId?: string, bre
   return `/meetings/live?${params.toString()}`;
 }
 
+function pickPreferredChatThread(threads: ChatThread[], userId: string) {
+  if (!threads.length) return '';
+  const byGroup = threads.find((thread) => thread.participantUserIds.includes(userId) && thread.participantUserIds.length > 1);
+  if (byGroup) return byGroup.id;
+  const direct = threads.find((thread) => thread.participantUserIds.includes(userId));
+  return direct?.id ?? threads[0].id;
+}
+
+function buildChatPreview(body: string, attachments: ChatAttachment[] = []) {
+  const trimmedBody = body.trim();
+  if (trimmedBody) return trimmedBody;
+  if (!attachments.length) return 'New message';
+  if (attachments.length === 1) {
+    const [attachment] = attachments;
+    if (attachment.kind === 'image') return `Shared image: ${attachment.name}`;
+    if (attachment.kind === 'video') return `Shared video: ${attachment.name}`;
+    return `Shared file: ${attachment.name}`;
+  }
+  return `Shared ${attachments.length} attachments`;
+}
+
+function getAttachmentKind(file: File): ChatAttachment['kind'] {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  return 'file';
+}
+
+function readFileAsAttachment(file: File): Promise<ChatAttachment> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!dataUrl) {
+        reject(new Error('Missing file data.'));
+        return;
+      }
+
+      resolve({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+        dataUrl,
+        kind: getAttachmentKind(file),
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function MeetingsLivePage() {
   return (
     <React.Suspense fallback={<MeetingsLiveFallback />}>
@@ -182,8 +242,15 @@ function MeetingsLivePageContent() {
   const searchParams = useSearchParams();
   const { isGerman } = useAppTranslations();
   const { data: session, status: sessionStatus } = useSession();
+  const { language, setLanguage } = useLanguageStore();
   const hydrated = useHydrated(useThemeStore);
-  const { theme } = useThemeStore();
+  const { theme, set: setTheme } = useThemeStore();
+  const {
+    pushNotifications,
+    carbonMilestoneAlerts,
+    setPushNotifications,
+    setCarbonMilestoneAlerts,
+  } = useSettingsStore();
   const isLight = (hydrated ? theme : 'dark') === 'light';
   const activeMeetingId = searchParams.get('meetingId')?.trim() || DEMO_MEETING_ID;
   const activeBreakoutRoomId = searchParams.get('breakoutRoomId')?.trim() || '';
@@ -206,12 +273,21 @@ function MeetingsLivePageContent() {
   const [breakoutDurationMinutes, setBreakoutDurationMinutes] = React.useState('10');
   const [utilityExpanded, setUtilityExpanded] = React.useState(false);
   const [optionsOpen, setOptionsOpen] = React.useState(false);
+  const [activeSidePanel, setActiveSidePanel] = React.useState<LiveSidePanel>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [sessionExpired, setSessionExpired] = React.useState(false);
   const [selfJoinReady, setSelfJoinReady] = React.useState(false);
   const [selfJoinError, setSelfJoinError] = React.useState('');
   const [networkRisk, setNetworkRisk] = React.useState<NetworkRiskResult | null>(null);
   const [networkRiskChecking, setNetworkRiskChecking] = React.useState(false);
+  const [chatThreads, setChatThreads] = React.useState<ChatThread[]>([]);
+  const [chatActiveThreadId, setChatActiveThreadId] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState<ChatMessage[]>([]);
+  const [chatComposerValue, setChatComposerValue] = React.useState('');
+  const [chatComposerAttachments, setChatComposerAttachments] = React.useState<ChatAttachment[]>([]);
+  const [chatPanelLoading, setChatPanelLoading] = React.useState(false);
+  const [chatPanelSending, setChatPanelSending] = React.useState(false);
+  const [chatPanelError, setChatPanelError] = React.useState('');
   const locale = isGerman ? 'de-DE' : 'en-US';
   const actionTimerRef = React.useRef<number | null>(null);
   const breakoutRedirectRef = React.useRef<string | null>(null);
@@ -221,6 +297,7 @@ function MeetingsLivePageContent() {
   const [localScreenStream, setLocalScreenStream] = React.useState<MediaStream | null>(null);
   const currentParticipantId = session?.user?.id ?? '';
   const currentParticipantName = session?.user?.name?.trim() || 'Zero Carbon User';
+  const chatUserId = currentParticipantId === 'demo-user' ? 'u5' : currentParticipantId;
   const selfParticipant = React.useMemo(() => ({
     id: currentParticipantId,
     displayName: currentParticipantName,
@@ -447,7 +524,77 @@ function MeetingsLivePageContent() {
     };
   }, [activeMeetingId, currentParticipantId, selfJoinReady, session?.user?.id, sessionStatus]);
 
+  React.useEffect(() => {
+    if (activeSidePanel !== 'chat' || sessionStatus !== 'authenticated') {
+      return;
+    }
+
+    let cancelled = false;
+    setChatPanelLoading(true);
+    const loadThreads = async () => {
+      const response = await fetchJsonWithRetry<{ threads: ChatThread[] }>('/api/chat/threads', { cache: 'no-store' });
+      if (cancelled) return;
+      if (response.unauthorized) {
+        setSessionExpired(true);
+        setChatPanelLoading(false);
+        return;
+      }
+      if (!response.ok) {
+        setChatPanelError(response.error ?? (isGerman ? 'Chat konnte nicht geladen werden.' : 'Unable to load chat.'));
+        setChatPanelLoading(false);
+        return;
+      }
+      const nextThreads = response.data?.threads ?? [];
+      setChatThreads(nextThreads);
+      setChatActiveThreadId((current) => current || pickPreferredChatThread(nextThreads, chatUserId || 'u5'));
+      setChatPanelError('');
+      setChatPanelLoading(false);
+    };
+
+    void loadThreads();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSidePanel, chatUserId, isGerman, sessionStatus]);
+
+  React.useEffect(() => {
+    if (activeSidePanel !== 'chat' || !chatActiveThreadId) {
+      return;
+    }
+
+    let cancelled = false;
+    setChatPanelLoading(true);
+    const loadMessages = async () => {
+      const response = await fetchJsonWithRetry<{ messages: ChatMessage[] }>(`/api/chat/threads/${encodeURIComponent(chatActiveThreadId)}/messages`, { cache: 'no-store' });
+      if (cancelled) return;
+      if (response.unauthorized) {
+        setSessionExpired(true);
+        setChatPanelLoading(false);
+        return;
+      }
+      if (!response.ok) {
+        setChatPanelError(response.error ?? (isGerman ? 'Nachrichten konnten nicht geladen werden.' : 'Unable to load messages.'));
+        setChatPanelLoading(false);
+        return;
+      }
+      setChatMessages(response.data?.messages ?? []);
+      setChatThreads((current) => current.map((thread) => (
+        thread.id === chatActiveThreadId
+          ? { ...thread, unreadCount: 0 }
+          : thread
+      )));
+      setChatPanelError('');
+      setChatPanelLoading(false);
+    };
+
+    void loadMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSidePanel, chatActiveThreadId, isGerman]);
+
   const sfuConnected = sfu.isEnabled && sfu.isConnected;
+  const activeChatThread = chatThreads.find((thread) => thread.id === chatActiveThreadId) ?? null;
   const localParticipantId = sfu.localParticipantId ?? (currentParticipantId || 'attendee-self');
   const participantNetworkById = new Map(participants.map((participant) => [toStableParticipantId(participant.id), participant.network ?? null]));
   const liveParticipants: LiveParticipant[] = sfuConnected
@@ -768,6 +915,21 @@ function MeetingsLivePageContent() {
     }, 2200);
   };
 
+  const openChatPanel = () => {
+    setActiveSidePanel('chat');
+    showAction(isGerman ? 'Meeting-Chat rechts geoeffnet.' : 'Meeting chat opened on the right.');
+  };
+
+  const openAppsPanel = () => {
+    setActiveSidePanel('apps');
+    showAction(isGerman ? 'Meeting-Apps rechts geoeffnet.' : 'Meeting apps opened on the right.');
+  };
+
+  const closeSidePanel = () => {
+    setActiveSidePanel(null);
+    showAction(isGerman ? 'Seitenbereich geschlossen.' : 'Side panel closed.');
+  };
+
   const copyInviteLink = async () => {
     try {
       if (navigator.clipboard?.writeText) {
@@ -832,6 +994,435 @@ function MeetingsLivePageContent() {
       return;
     }
     showAction(`${displayName} removed from room.`);
+  };
+
+  const handleChatAttachmentSelect = React.useCallback((files: FileList | null) => {
+    if (!files?.length) return;
+    const nextFiles = Array.from(files).slice(0, Math.max(0, MAX_CHAT_ATTACHMENTS_PER_MESSAGE - chatComposerAttachments.length));
+    const oversized = nextFiles.find((file) => file.size > MAX_CHAT_ATTACHMENT_SIZE_BYTES);
+    if (oversized) {
+      setChatPanelError(isGerman ? 'Ein Anhang ist zu gross. Maximal 25 MB.' : 'One attachment is too large. Max size is 25 MB.');
+      return;
+    }
+
+    void Promise.all(nextFiles.map(readFileAsAttachment))
+      .then((attachments) => {
+        setChatComposerAttachments((current) => [...current, ...attachments].slice(0, MAX_CHAT_ATTACHMENTS_PER_MESSAGE));
+        setChatPanelError('');
+      })
+      .catch(() => {
+        setChatPanelError(isGerman ? 'Anhang konnte nicht gelesen werden.' : 'Unable to read that attachment.');
+      });
+  }, [chatComposerAttachments.length, isGerman]);
+
+  const handleChatSend = React.useCallback(async () => {
+    const trimmedBody = chatComposerValue.trim();
+    if (!chatActiveThreadId || (!trimmedBody && chatComposerAttachments.length === 0) || chatPanelSending) return;
+
+    setChatPanelSending(true);
+    const response = await fetchJsonWithRetry<{ message: ChatMessage }>(`/api/chat/threads/${encodeURIComponent(chatActiveThreadId)}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        senderUserId: chatUserId || 'u5',
+        body: trimmedBody,
+        attachments: chatComposerAttachments,
+      }),
+    });
+
+    setChatPanelSending(false);
+    if (response.unauthorized) {
+      setSessionExpired(true);
+      return;
+    }
+    if (!response.ok || !response.data?.message) {
+      setChatPanelError(response.error ?? (isGerman ? 'Nachricht konnte nicht gesendet werden.' : 'Unable to send message.'));
+      return;
+    }
+
+    const nextMessage = response.data.message as ChatMessage;
+    const nextPreview = buildChatPreview(trimmedBody, chatComposerAttachments);
+    setChatMessages((current) => [...current, nextMessage]);
+    setChatThreads((current) => {
+      const updatedThreads = current.map((thread) => (
+        thread.id === chatActiveThreadId
+          ? {
+            ...thread,
+            lastMessagePreview: nextPreview || thread.lastMessagePreview,
+            unreadCount: 0,
+            updatedAt: nextMessage.createdAt ?? thread.updatedAt,
+          }
+          : thread
+      ));
+      const activeThread = updatedThreads.find((thread) => thread.id === chatActiveThreadId);
+      const remainingThreads = updatedThreads.filter((thread) => thread.id !== chatActiveThreadId);
+      return activeThread ? [activeThread, ...remainingThreads] : updatedThreads;
+    });
+    setChatComposerValue('');
+    setChatComposerAttachments([]);
+    setChatPanelError('');
+  }, [chatActiveThreadId, chatComposerAttachments, chatComposerValue, chatPanelSending, chatUserId, isGerman]);
+
+  const handleChatRetry = React.useCallback(async () => {
+    if (activeSidePanel !== 'chat') return;
+
+    setChatPanelError('');
+    setChatPanelLoading(true);
+
+    const threadsResponse = await fetchJsonWithRetry<{ threads: ChatThread[] }>('/api/chat/threads', { cache: 'no-store' });
+    if (threadsResponse.unauthorized) {
+      setSessionExpired(true);
+      setChatPanelLoading(false);
+      return;
+    }
+    if (!threadsResponse.ok) {
+      setChatPanelError(threadsResponse.error ?? (isGerman ? 'Chat konnte nicht wiederhergestellt werden.' : 'Unable to restore chat.'));
+      setChatPanelLoading(false);
+      return;
+    }
+
+    const nextThreads = threadsResponse.data?.threads ?? [];
+    const nextThreadId = chatActiveThreadId && nextThreads.some((thread) => thread.id === chatActiveThreadId)
+      ? chatActiveThreadId
+      : pickPreferredChatThread(nextThreads, chatUserId || 'u5');
+
+    setChatThreads(nextThreads);
+    setChatActiveThreadId(nextThreadId);
+
+    if (!nextThreadId) {
+      setChatMessages([]);
+      setChatPanelLoading(false);
+      return;
+    }
+
+    const messagesResponse = await fetchJsonWithRetry<{ messages: ChatMessage[] }>(`/api/chat/threads/${encodeURIComponent(nextThreadId)}/messages`, { cache: 'no-store' });
+    if (messagesResponse.unauthorized) {
+      setSessionExpired(true);
+      setChatPanelLoading(false);
+      return;
+    }
+    if (!messagesResponse.ok) {
+      setChatPanelError(messagesResponse.error ?? (isGerman ? 'Nachrichten konnten nicht wiederhergestellt werden.' : 'Unable to restore messages.'));
+      setChatPanelLoading(false);
+      return;
+    }
+
+    setChatMessages(messagesResponse.data?.messages ?? []);
+    setChatThreads((current) => current.map((thread) => (
+      thread.id === nextThreadId
+        ? { ...thread, unreadCount: 0 }
+        : thread
+    )));
+    setChatPanelLoading(false);
+  }, [activeSidePanel, chatActiveThreadId, chatUserId, isGerman]);
+
+  const renderSidePanelContent = () => {
+    if (!activeSidePanel) return null;
+
+    const panelBorder = isLight ? 'rgba(15,23,42,0.10)' : 'rgba(255,255,255,0.10)';
+    const panelBg = isLight
+      ? 'linear-gradient(180deg,rgba(255,255,255,0.98) 0%,rgba(240,247,246,0.98) 100%)'
+      : 'linear-gradient(180deg,rgba(8,14,24,0.98) 0%,rgba(9,22,24,0.98) 100%)';
+    const softPanelBg = isLight ? 'rgba(248,250,252,0.88)' : 'rgba(255,255,255,0.04)';
+    const softPanelAltBg = isLight ? 'rgba(255,255,255,0.74)' : 'rgba(15,23,42,0.54)';
+    const headingColor = isLight ? '#0f172a' : '#ffffff';
+    const bodyColor = isLight ? '#475569' : '#94a3b8';
+    const metaColor = isLight ? '#64748b' : '#a8b7cb';
+    const accentColor = isLight ? '#047857' : '#5eead4';
+    const panelShadow = isLight ? '0 24px 70px rgba(15,23,42,0.16)' : '0 34px 90px rgba(0,0,0,0.34)';
+
+    if (activeSidePanel === 'chat') {
+      return (
+        <div className="flex h-full min-h-0 flex-col rounded-[30px] border" style={{ borderColor: panelBorder, background: panelBg, boxShadow: panelShadow }}>
+          <div className="flex items-start justify-between gap-3 border-b px-5 py-5" style={{ borderColor: panelBorder }}>
+            <div>
+              <p className="inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: accentColor, borderColor: isLight ? 'rgba(4,120,87,0.18)' : 'rgba(94,234,212,0.18)', background: isLight ? 'rgba(236,253,245,0.9)' : 'rgba(13,148,136,0.14)' }}>
+                {isGerman ? 'Meeting-Chat' : 'Meeting Chat'}
+              </p>
+              <h2 className="mt-3 text-[1.35rem] font-black tracking-[-0.02em]" style={{ color: headingColor }}>
+                {activeChatThread?.title ?? (isGerman ? 'Team-Konversation' : 'Team conversation')}
+              </h2>
+              <p className="mt-1 max-w-[28ch] text-[13px] leading-6" style={{ color: bodyColor }}>
+                {isGerman ? 'Der Raum bleibt sichtbar, waehrend du rechts chattest.' : 'Keep the room visible while chatting on the right.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeSidePanel}
+              className="grid h-11 w-11 place-items-center rounded-2xl border transition hover:scale-[1.02]"
+              style={{ borderColor: panelBorder, color: headingColor, background: softPanelAltBg }}
+              aria-label={isGerman ? 'Chatbereich schliessen' : 'Close chat panel'}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col px-5 py-5">
+            {chatThreads.length > 0 ? (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {chatThreads.map((thread) => {
+                  const selected = thread.id === chatActiveThreadId;
+                  return (
+                    <button
+                      key={thread.id}
+                      type="button"
+                      onClick={() => setChatActiveThreadId(thread.id)}
+                      className="rounded-full border px-3.5 py-2 text-[11px] font-black tracking-[0.08em] uppercase transition"
+                      style={{
+                        borderColor: selected ? 'rgba(0,229,186,0.32)' : panelBorder,
+                        background: selected
+                          ? (isLight ? 'linear-gradient(135deg,rgba(220,252,231,0.95),rgba(204,251,241,0.95))' : 'linear-gradient(135deg,rgba(16,185,129,0.18),rgba(45,212,191,0.12))')
+                          : softPanelAltBg,
+                        color: selected ? accentColor : metaColor,
+                      }}
+                    >
+                      <span>{thread.title}</span>
+                      {thread.unreadCount > 0 ? (
+                        <span
+                          className="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px]"
+                          style={{
+                            background: selected
+                              ? (isLight ? 'rgba(4,120,87,0.14)' : 'rgba(94,234,212,0.18)')
+                              : (isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)'),
+                            color: selected ? accentColor : headingColor,
+                          }}
+                        >
+                          {thread.unreadCount}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {chatPanelError ? (
+              <div className="mb-4 rounded-2xl border px-4 py-3 text-sm leading-6" style={{ borderColor: 'rgba(239,68,68,0.28)', background: isLight ? 'rgba(254,242,242,0.9)' : 'rgba(127,29,29,0.28)', color: isLight ? '#991b1b' : '#fecaca' }}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{chatPanelError}</span>
+                  <button
+                    type="button"
+                    onClick={() => { void handleChatRetry(); }}
+                    className="rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em]"
+                    style={{
+                      borderColor: 'rgba(239,68,68,0.32)',
+                      background: isLight ? 'rgba(255,255,255,0.8)' : 'rgba(69,10,10,0.28)',
+                      color: isLight ? '#991b1b' : '#fecaca',
+                    }}
+                  >
+                    {isGerman ? 'Erneut laden' : 'Retry'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="min-h-[280px] flex-1 overflow-hidden rounded-[26px] border" style={{ borderColor: panelBorder, background: softPanelAltBg }}>
+              {chatPanelLoading ? (
+                <div className="flex h-full items-center justify-center px-4 text-sm font-semibold" style={{ color: bodyColor }}>
+                  {isGerman ? 'Meeting-Chat wird geladen...' : 'Loading meeting chat...'}
+                </div>
+              ) : !chatActiveThreadId ? (
+                <div className="flex h-full items-center justify-center px-4 text-center text-sm font-semibold" style={{ color: bodyColor }}>
+                  {isGerman ? 'Noch kein Chat-Thread verfuegbar.' : 'No meeting chat thread is available yet.'}
+                </div>
+              ) : (
+                <MessagePane isLight={isLight} messages={chatMessages} selfUserId={chatUserId || 'u5'} />
+              )}
+            </div>
+
+            <div className="mt-4 rounded-[24px] border px-4 py-3" style={{ borderColor: panelBorder, background: softPanelAltBg }}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: metaColor }}>
+                  {isGerman ? 'Schnell senden' : 'Quick send'}
+                </p>
+                <p className="text-[11px] font-semibold" style={{ color: bodyColor }}>
+                  {isGerman ? 'Enter zum Senden' : 'Press Enter to send'}
+                </p>
+              </div>
+              <Composer
+                attachLabel={isGerman ? 'Dateien, Fotos oder Videos anhaengen' : 'Attach files, photos, or videos'}
+                attachments={chatComposerAttachments}
+                disabled={!chatActiveThreadId || chatPanelSending || (!chatComposerValue.trim() && chatComposerAttachments.length === 0)}
+                isLight={isLight}
+                onChange={setChatComposerValue}
+                onFileSelect={handleChatAttachmentSelect}
+                onRemoveAttachment={(attachmentId) => setChatComposerAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId))}
+                onSend={() => { void handleChatSend(); }}
+                placeholder={isGerman ? 'Nachricht an das Meeting schreiben...' : 'Message the meeting...'}
+                removeAttachmentLabel={isGerman ? 'Anhang entfernen' : 'Remove attachment'}
+                sendLabel={chatPanelSending ? (isGerman ? 'Sendet...' : 'Sending...') : (isGerman ? 'Senden' : 'Send')}
+                value={chatComposerValue}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full min-h-0 flex-col rounded-[30px] border" style={{ borderColor: panelBorder, background: panelBg, boxShadow: panelShadow }}>
+        <div className="flex items-start justify-between gap-3 border-b px-5 py-5" style={{ borderColor: panelBorder }}>
+          <div>
+            <p className="inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: accentColor, borderColor: isLight ? 'rgba(4,120,87,0.18)' : 'rgba(94,234,212,0.18)', background: isLight ? 'rgba(236,253,245,0.9)' : 'rgba(13,148,136,0.14)' }}>
+              {isGerman ? 'Meeting-Apps' : 'Meeting Apps'}
+            </p>
+            <h2 className="mt-3 text-[1.35rem] font-black tracking-[-0.02em]" style={{ color: headingColor }}>
+              {isGerman ? 'Einstellungen im Raum' : 'In-room settings'}
+            </h2>
+            <p className="mt-1 max-w-[28ch] text-[13px] leading-6" style={{ color: bodyColor }}>
+              {isGerman ? 'Passe Sprache, Theme und Hinweise an, ohne das Meeting zu verlassen.' : 'Adjust language, theme, and alerts without leaving the meeting.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={closeSidePanel}
+            className="grid h-11 w-11 place-items-center rounded-2xl border transition hover:scale-[1.02]"
+            style={{ borderColor: panelBorder, color: headingColor, background: softPanelAltBg }}
+            aria-label={isGerman ? 'App-Bereich schliessen' : 'Close apps panel'}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          <div className="rounded-[26px] border p-4" style={{ borderColor: panelBorder, background: softPanelAltBg }}>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: metaColor }}>
+              {isGerman ? 'Theme' : 'Theme'}
+            </p>
+            <div className="mt-2">
+              <p className="text-sm leading-6" style={{ color: bodyColor }}>
+                {isGerman ? 'Wechsle zwischen konzentriertem Dunkelmodus und hellem Arbeitsmodus.' : 'Switch between a focused dark mode and a lighter workspace mode.'}
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(['dark', 'light'] as const).map((option) => {
+                const selected = theme === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setTheme(option)}
+                    className="rounded-2xl border px-3 py-3 text-left transition"
+                    style={{
+                      borderColor: selected ? 'rgba(0,229,186,0.35)' : panelBorder,
+                      background: selected
+                        ? (isLight ? 'linear-gradient(135deg,rgba(220,252,231,0.95),rgba(204,251,241,0.95))' : 'linear-gradient(135deg,rgba(16,185,129,0.18),rgba(45,212,191,0.12))')
+                        : panelBg,
+                      color: selected ? accentColor : headingColor,
+                    }}
+                  >
+                    <span className="block text-sm font-black">{option === 'dark' ? (isGerman ? 'Dunkel' : 'Dark') : (isGerman ? 'Hell' : 'Light')}</span>
+                    <span className="mt-1 block text-[11px] font-semibold" style={{ color: selected ? accentColor : metaColor }}>
+                      {option === 'dark'
+                        ? (isGerman ? 'Buehnenfokus und Kontrast' : 'Stage-focused and high contrast')
+                        : (isGerman ? 'Luftiger fuer Tagesarbeit' : 'Airier for daytime work')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-[26px] border p-4" style={{ borderColor: panelBorder, background: softPanelAltBg }}>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: metaColor }}>
+              {isGerman ? 'Sprache' : 'Language'}
+            </p>
+            <div className="mt-2">
+              <p className="text-sm leading-6" style={{ color: bodyColor }}>
+                {isGerman ? 'Passe Beschriftungen und Meeting-Hinweise sofort fuer dein Team an.' : 'Adjust labels and meeting guidance instantly for your team.'}
+              </p>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(['en', 'de'] as const).map((option) => {
+                const selected = language === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setLanguage(option)}
+                    className="rounded-2xl border px-3 py-3 text-left transition"
+                    style={{
+                      borderColor: selected ? 'rgba(0,229,186,0.35)' : panelBorder,
+                      background: selected
+                        ? (isLight ? 'linear-gradient(135deg,rgba(220,252,231,0.95),rgba(204,251,241,0.95))' : 'linear-gradient(135deg,rgba(16,185,129,0.18),rgba(45,212,191,0.12))')
+                        : panelBg,
+                      color: selected ? accentColor : headingColor,
+                    }}
+                  >
+                    <span className="block text-sm font-black">{option === 'de' ? 'Deutsch' : 'English'}</span>
+                    <span className="mt-1 block text-[11px] font-semibold" style={{ color: selected ? accentColor : metaColor }}>
+                      {option === 'de' ? 'DACH-ready meeting copy' : 'Global meeting copy'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-[26px] border p-4" style={{ borderColor: panelBorder, background: softPanelAltBg }}>
+            <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: metaColor }}>
+              {isGerman ? 'Hinweise' : 'Alerts'}
+            </p>
+            <div className="mt-2">
+              <p className="text-sm leading-6" style={{ color: bodyColor }}>
+                {isGerman ? 'Halte dein Meeting-Team auf dem Laufenden, ohne die Oberflaeche zu ueberladen.' : 'Keep your meeting team informed without overloading the interface.'}
+              </p>
+            </div>
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                onClick={() => setPushNotifications(!pushNotifications)}
+                className="flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition"
+                style={{
+                  borderColor: pushNotifications ? 'rgba(0,229,186,0.24)' : panelBorder,
+                  background: pushNotifications
+                    ? (isLight ? 'rgba(236,253,245,0.92)' : 'rgba(13,148,136,0.12)')
+                    : panelBg,
+                  color: headingColor,
+                }}
+              >
+                <span>
+                  <span className="block text-sm font-bold">{isGerman ? 'Push-Benachrichtigungen' : 'Push notifications'}</span>
+                  <span className="block text-xs leading-5" style={{ color: bodyColor }}>{isGerman ? 'Meeting-, Chat- und Aktivitaetshinweise' : 'Meeting, chat, and activity alerts'}</span>
+                </span>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-black tracking-[0.14em]" style={{ color: pushNotifications ? accentColor : metaColor, background: pushNotifications ? (isLight ? 'rgba(220,252,231,1)' : 'rgba(45,212,191,0.16)') : softPanelBg }}>
+                  {pushNotifications ? (isGerman ? 'AN' : 'ON') : (isGerman ? 'AUS' : 'OFF')}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCarbonMilestoneAlerts(!carbonMilestoneAlerts)}
+                className="flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition"
+                style={{
+                  borderColor: carbonMilestoneAlerts ? 'rgba(0,229,186,0.24)' : panelBorder,
+                  background: carbonMilestoneAlerts
+                    ? (isLight ? 'rgba(236,253,245,0.92)' : 'rgba(13,148,136,0.12)')
+                    : panelBg,
+                  color: headingColor,
+                }}
+              >
+                <span>
+                  <span className="block text-sm font-bold">{isGerman ? 'Impact-Hinweise' : 'Impact alerts'}</span>
+                  <span className="block text-xs leading-5" style={{ color: bodyColor }}>{isGerman ? 'Aufnahmen und Post-Meeting-Impact' : 'Recordings and post-meeting impact'}</span>
+                </span>
+                <span className="rounded-full px-2.5 py-1 text-[11px] font-black tracking-[0.14em]" style={{ color: carbonMilestoneAlerts ? accentColor : metaColor, background: carbonMilestoneAlerts ? (isLight ? 'rgba(220,252,231,1)' : 'rgba(45,212,191,0.16)') : softPanelBg }}>
+                  {carbonMilestoneAlerts ? (isGerman ? 'AN' : 'ON') : (isGerman ? 'AUS' : 'OFF')}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link href="/settings/security" className="rounded-2xl border px-3 py-3 text-sm font-bold text-center transition" style={{ borderColor: panelBorder, background: softPanelAltBg, color: headingColor }}>
+              {isGerman ? 'Security Center' : 'Security Center'}
+            </Link>
+            <Link href="/cookie-policy" className="rounded-2xl border px-3 py-3 text-sm font-bold text-center transition" style={{ borderColor: panelBorder, background: softPanelAltBg, color: headingColor }}>
+              {isGerman ? 'Cookie Policy' : 'Cookie Policy'}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const openBreakoutSetup = () => {
@@ -1209,7 +1800,7 @@ function MeetingsLivePageContent() {
       >
         <Link
           href={signInHref}
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#1a73e8] px-6 text-sm font-bold text-white transition hover:bg-[#175ec0]"
+          className="brand-gradient-button inline-flex min-h-12 items-center justify-center rounded-full px-6 text-sm font-bold transition"
         >
           {isGerman ? 'Anmelden und beitreten' : 'Sign in and join'}
         </Link>
@@ -1239,7 +1830,7 @@ function MeetingsLivePageContent() {
       >
         <Link
           href="/meet"
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#1a73e8] px-6 text-sm font-bold text-white transition hover:bg-[#175ec0]"
+          className="brand-gradient-button inline-flex min-h-12 items-center justify-center rounded-full px-6 text-sm font-bold transition"
         >
           {isGerman ? 'Zurueck zu Meet' : 'Back to Meet'}
         </Link>
@@ -1269,7 +1860,7 @@ function MeetingsLivePageContent() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#1a73e8] px-6 text-sm font-bold text-white transition hover:bg-[#175ec0]"
+          className="brand-gradient-button inline-flex min-h-12 items-center justify-center rounded-full px-6 text-sm font-bold transition"
         >
           {isGerman ? 'Erneut versuchen' : 'Retry'}
         </button>
@@ -1509,7 +2100,7 @@ function MeetingsLivePageContent() {
                   type="button"
                   onClick={() => { void handleStartBreakoutFromSetup(); }}
                   disabled={breakoutQuickBusy}
-                  className="rounded-2xl bg-[#1a73e8] px-5 py-3 text-sm font-black text-white disabled:opacity-60"
+                  className="brand-gradient-button rounded-2xl px-5 py-3 text-sm font-black disabled:opacity-60"
                 >
                   {breakoutQuickBusy ? (isGerman ? 'Startet...' : 'Starting...') : (isGerman ? 'Raeume starten' : 'Start Rooms')}
                 </button>
@@ -1518,7 +2109,7 @@ function MeetingsLivePageContent() {
           </section>
         </div>
       ) : null}
-      <div className="mx-auto flex h-[calc(100dvh-1rem)] max-w-[1500px] px-4 py-2 md:h-[calc(100dvh-1.5rem)] md:px-6 md:py-3">
+      <div className="mx-auto flex h-[calc(100dvh-1rem)] max-w-[1840px] gap-3 overflow-x-clip px-4 py-2 md:h-[calc(100dvh-1.5rem)] md:px-6 md:py-3">
         <section
           ref={liveShellRef}
           className="relative flex-1 overflow-hidden rounded-[26px] border shadow-[0_30px_80px_rgba(0,0,0,0.20)]"
@@ -1579,7 +2170,7 @@ function MeetingsLivePageContent() {
               </div>
                 <button
                   type="button"
-                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#1a73e8] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#175ec0]"
+                  className="brand-gradient-button mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition"
                   onClick={() => void copyInviteLink()}
                 >
                   <AddUserIcon />
@@ -1620,8 +2211,8 @@ function MeetingsLivePageContent() {
           ) : null}
 
           <div className="relative z-10 h-full min-h-0">
-            <div className="absolute left-5 right-5 top-5 z-30 flex flex-col items-end gap-2 md:left-7 md:right-7">
-              <div className="flex flex-wrap justify-end gap-2">
+            <div className="absolute left-5 right-5 top-5 z-30 flex flex-col items-end gap-3 md:left-7 md:right-7">
+              <div className="flex flex-wrap justify-end gap-3">
                 <span
                   className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold"
                   style={{
@@ -1796,8 +2387,8 @@ function MeetingsLivePageContent() {
                         playsInline
                       />
                     ) : (
-                      <div className="flex h-28 w-28 items-center justify-center rounded-[36px] border border-white/20 bg-[radial-gradient(circle_at_30%_20%,#34d399,#0ea5e9_65%,#0f172a)] text-4xl font-semibold text-white shadow-[0_18px_48px_rgba(0,0,0,0.42)]">
-                        Z
+                      <div className="flex h-28 w-28 items-center justify-center rounded-[36px] border border-white/20 bg-[radial-gradient(circle_at_30%_20%,#34d399,#0ea5e9_65%,#0f172a)] shadow-[0_18px_48px_rgba(0,0,0,0.42)]">
+                        <BrandMark alt="Z Meetings" className="h-14 w-14" size={56} />
                       </div>
                     )}
                     <div
@@ -1827,16 +2418,16 @@ function MeetingsLivePageContent() {
               )}
             </div>
 
-            <div className="absolute bottom-5 left-0 right-0 z-30 px-5 md:px-7">
+          <div className="absolute bottom-5 left-0 right-0 z-30 px-5 md:px-7">
               <div
-                className="rounded-[28px] border p-3 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
+                className="rounded-[28px] border p-4 md:p-5 shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
                 style={{
                   borderColor: isLight ? 'rgba(15,23,42,0.10)' : 'rgba(255,255,255,0.12)',
                   background: isLight ? 'rgba(248,250,252,0.94)' : 'rgba(15,23,42,0.82)',
                 }}
               >
-              <div className="grid gap-3 xl:grid-cols-[minmax(320px,1fr)_minmax(0,auto)_minmax(120px,1fr)] xl:items-center">
-                <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm font-semibold md:text-base" style={{ color: isLight ? '#0f172a' : 'rgba(255,255,255,0.95)' }}>
+              <div className="grid gap-4 xl:grid-cols-[minmax(320px,1fr)_minmax(0,auto)_minmax(120px,1fr)] xl:items-center">
+                <div className="flex min-w-0 flex-wrap items-center gap-4 text-sm font-semibold md:text-base" style={{ color: isLight ? '#0f172a' : 'rgba(255,255,255,0.95)' }}>
                   <span>{clockLabel}</span>
                   <span className="h-5 w-px" style={{ background: isLight ? 'rgba(15,23,42,0.22)' : 'rgba(255,255,255,0.22)' }} />
                   <span className="min-w-[220px] max-w-full font-medium leading-6" style={{ color: isLight ? '#475569' : 'rgba(255,255,255,0.72)' }}>
@@ -1848,7 +2439,7 @@ function MeetingsLivePageContent() {
                 </div>
 
                 <div className="min-w-0">
-                <div className="mx-auto flex max-w-full flex-wrap items-center justify-center gap-3 px-1">
+                <div className="mx-auto flex max-w-full flex-wrap items-center justify-center gap-4 px-2">
                   <MeetingControlButton
                     isLight={isLight}
                     label={utilityExpanded ? (isGerman ? 'Schnellsteuerung einklappen' : 'Collapse quick controls') : (isGerman ? 'Schnellsteuerung ausklappen' : 'Expand quick controls')}
@@ -1998,14 +2589,14 @@ function MeetingsLivePageContent() {
                 </div>
                 </div>
 
-                <div className="flex items-center justify-start gap-3 xl:justify-end" style={{ color: isLight ? '#0f172a' : 'rgba(255,255,255,0.9)' }}>
+                <div className="flex items-center justify-start gap-4 xl:gap-6 xl:justify-end" style={{ color: isLight ? '#0f172a' : 'rgba(255,255,255,0.9)' }}>
                   <Link
                     href={`/meet?meetingId=${encodeURIComponent(activeMeetingId)}`}
                     className="inline-flex h-12 min-w-24 items-center justify-center rounded-[18px] bg-[#ea4335] px-5 text-sm font-semibold text-white transition hover:bg-[#d93025]"
                   >
                     {isGerman ? 'Verlassen' : 'Leave'}
                   </Link>
-                  <div className="hidden items-center gap-3 2xl:flex">
+                  <div className="flex flex-wrap items-center gap-3">
                   <UtilityPill isLight={isLight} label={isGerman ? 'Info' : 'Info'} onClick={() => {
                     setInviteOpen(true);
                     showAction(isGerman ? 'Meeting-Info geoeffnet.' : 'Meeting info card opened.');
@@ -2014,13 +2605,13 @@ function MeetingsLivePageContent() {
                     <InfoIcon />
                   </UtilityPill>
                   <UtilityPill isLight={isLight} label={isGerman ? 'Chat' : 'Chat'} onClick={() => {
-                    router.push(`/chat?meetingId=${encodeURIComponent(activeMeetingId)}`);
+                    openChatPanel();
                   }}
                   >
                     <ChatIcon />
                   </UtilityPill>
                   <UtilityPill isLight={isLight} label={isGerman ? 'Apps' : 'Apps'} onClick={() => {
-                    router.push('/settings');
+                    openAppsPanel();
                   }}
                   >
                     <GridIcon />
@@ -2052,7 +2643,7 @@ function MeetingsLivePageContent() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => router.push(`/chat?meetingId=${encodeURIComponent(activeMeetingId)}`)}
+                        onClick={openChatPanel}
                         className="rounded-full border px-4 py-2 text-xs font-semibold"
                         style={{
                           borderColor: 'rgba(59,130,246,0.4)',
@@ -2061,6 +2652,18 @@ function MeetingsLivePageContent() {
                         }}
                       >
                         {isGerman ? 'Chat oeffnen' : 'Open Chat'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openAppsPanel}
+                        className="rounded-full border px-4 py-2 text-xs font-semibold"
+                        style={{
+                          borderColor: 'rgba(168,85,247,0.4)',
+                          color: isLight ? '#6d28d9' : '#d8b4fe',
+                          background: isLight ? 'rgba(168,85,247,0.10)' : 'rgba(107,33,168,0.22)',
+                        }}
+                      >
+                        {isGerman ? 'Apps oeffnen' : 'Open Apps'}
                       </button>
                     </>
                   ) : null}
@@ -2273,7 +2876,19 @@ function MeetingsLivePageContent() {
             </div>
           </div>
         </section>
+        {activeSidePanel ? (
+          <aside className="hidden h-full w-[320px] shrink-0 xl:block 2xl:w-[340px]">
+            {renderSidePanelContent()}
+          </aside>
+        ) : null}
       </div>
+      {activeSidePanel ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/45 p-3 xl:hidden">
+          <div className="h-[78vh] w-full">
+            {renderSidePanelContent()}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -2305,7 +2920,7 @@ function LiveStateGate({
   const cardShadow = isLight ? '0 28px 70px rgba(15,23,42,0.14)' : '0 28px 80px rgba(0,0,0,0.42)';
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-10" style={{ background: pageBg, color: textColor }}>
+    <main className="flex min-h-screen items-start justify-center px-5 pb-10 pt-16 md:items-center md:py-10" style={{ background: pageBg, color: textColor }}>
       <section
         className="w-full max-w-[520px] rounded-[28px] border px-6 py-7 text-center md:px-8 md:py-9"
         style={{ background: cardBg, borderColor, boxShadow: cardShadow }}
@@ -2363,32 +2978,36 @@ function MeetingControlButton({
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const inactiveBg = isLight ? 'rgba(255,255,255,0.92)' : 'rgba(31,41,55,0.88)';
+  const inactiveBg = isLight ? 'rgba(255,255,255,0.94)' : 'rgba(22,31,47,0.92)';
   const disabledBg = isLight ? 'rgba(226,232,240,0.72)' : 'rgba(15,23,42,0.62)';
-  const borderColor = isLight ? 'rgba(15,23,42,0.18)' : 'rgba(255,255,255,0.15)';
+  const borderColor = isLight ? 'rgba(15,23,42,0.14)' : 'rgba(255,255,255,0.12)';
   const color = disabled ? (isLight ? '#94a3b8' : '#64748b') : active ? '#ffffff' : (isLight ? '#0f172a' : '#ffffff');
-  const captionColor = disabled ? (isLight ? '#94a3b8' : '#64748b') : (isLight ? '#334155' : 'rgba(255,255,255,0.78)');
+  const captionColor = disabled ? (isLight ? '#94a3b8' : '#64748b') : (isLight ? '#334155' : 'rgba(255,255,255,0.72)');
+  const shadow = active
+    ? (isLight ? '0 14px 28px rgba(26,115,232,0.24)' : '0 16px 30px rgba(26,115,232,0.22)')
+    : (isLight ? '0 10px 18px rgba(15,23,42,0.08)' : '0 12px 20px rgba(0,0,0,0.18)');
 
   return (
-    <div className="flex w-[62px] flex-col items-center gap-1">
+    <div className="flex w-[72px] flex-col items-center gap-2">
       <button
         type="button"
         aria-label={label}
         aria-disabled={disabled}
         disabled={disabled}
         onClick={onClick}
-        className="inline-flex h-12 w-12 items-center justify-center rounded-[18px] border transition enabled:hover:scale-[1.03] disabled:cursor-not-allowed"
+        className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-[20px] border px-3 py-2 transition enabled:hover:scale-[1.03] disabled:cursor-not-allowed"
         style={{
           background: disabled ? disabledBg : active ? '#1a73e8' : inactiveBg,
           borderColor,
           color,
           opacity: disabled ? 0.82 : 1,
+          boxShadow: shadow,
         }}
         title={label}
       >
         {children}
       </button>
-      <span className="max-w-full truncate text-[10px] font-bold leading-none" style={{ color: captionColor }}>
+      <span className="max-w-full truncate text-[10px] font-black uppercase tracking-[0.12em] leading-none" style={{ color: captionColor }}>
         {caption}
       </span>
     </div>
@@ -2411,10 +3030,12 @@ function UtilityPill({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border transition hover:scale-[1.03]"
+      className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-[18px] border transition hover:scale-[1.03]"
       style={{
-        borderColor: isLight ? 'rgba(15,23,42,0.16)' : 'rgba(255,255,255,0.15)',
-        background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(31,41,55,0.75)',
+        borderColor: isLight ? 'rgba(15,23,42,0.14)' : 'rgba(255,255,255,0.12)',
+        background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(22,31,47,0.84)',
+        color: isLight ? '#0f172a' : '#f8fafc',
+        boxShadow: isLight ? '0 10px 18px rgba(15,23,42,0.08)' : '0 12px 22px rgba(0,0,0,0.18)',
       }}
       title={label}
     >

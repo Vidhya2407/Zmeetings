@@ -63,7 +63,7 @@ function MeetWorkspaceScreenContent() {
   const { t, language } = useAppTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const hydrated = useHydrated(useThemeStore);
   const { theme } = useThemeStore();
   const isLight = (hydrated ? theme : 'dark') === 'light';
@@ -116,7 +116,17 @@ function MeetWorkspaceScreenContent() {
     setSelectedMeetingId(selectedFromQuery);
   }, [selectedFromQuery]);
 
+  React.useEffect(() => {
+    if (sessionStatus === 'unauthenticated') {
+      router.replace(`/login?next=${encodeURIComponent('/meet')}`);
+    }
+  }, [router, sessionStatus]);
+
   const loadMeetData = React.useCallback(async (preferredMeetingId?: string | null) => {
+    if (sessionStatus !== 'authenticated') {
+      return;
+    }
+
     setLoading(true);
     setLoadError(null);
     try {
@@ -149,13 +159,22 @@ function MeetWorkspaceScreenContent() {
     } finally {
       setLoading(false);
     }
-  }, [language, router, selectedMeetingId]);
+  }, [language, router, selectedMeetingId, sessionStatus]);
 
   React.useEffect(() => {
-    void loadMeetData();
-  }, [loadMeetData]);
+    if (sessionStatus === 'authenticated') {
+      void loadMeetData();
+      return;
+    }
+
+    setLoading(sessionStatus === 'loading');
+  }, [loadMeetData, sessionStatus]);
 
   const loadSelectedMeeting = React.useCallback(async (meetingId: string) => {
+    if (sessionStatus !== 'authenticated') {
+      return;
+    }
+
     setDetailsLoading(true);
     setDetailsError(null);
     setSelectedSummary(null);
@@ -182,16 +201,22 @@ function MeetWorkspaceScreenContent() {
     } finally {
       setDetailsLoading(false);
     }
-  }, [language, router]);
+  }, [language, router, sessionStatus]);
 
   React.useEffect(() => {
+    if (sessionStatus !== 'authenticated') {
+      setSelectedMeeting(null);
+      setSelectedSummary(null);
+      return;
+    }
+
     if (!selectedMeetingId) {
       setSelectedMeeting(null);
       setSelectedSummary(null);
       return;
     }
     void loadSelectedMeeting(selectedMeetingId);
-  }, [loadSelectedMeeting, selectedMeetingId]);
+  }, [loadSelectedMeeting, selectedMeetingId, sessionStatus]);
 
   const handleCreateMeeting = React.useCallback(async () => {
     if (creatingMeeting) return;
@@ -366,8 +391,12 @@ function MeetWorkspaceScreenContent() {
     }
   }, [joinCode, pushNotification, router, t]);
 
+  if (sessionStatus !== 'authenticated') {
+    return <MeetWorkspaceFallback />;
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex items-center justify-end">
         <NetworkQualityBadge isLight={isLight} />
       </div>
@@ -401,7 +430,7 @@ function MeetWorkspaceScreenContent() {
       ) : null}
 
       <section
-        className="rounded-3xl border p-5 md:p-6"
+        className="rounded-3xl border p-6 md:p-8"
         style={{
           background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)',
           borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -410,16 +439,16 @@ function MeetWorkspaceScreenContent() {
         <p className="text-sm font-black uppercase tracking-[0.16em]" style={{ color: 'rgb(0,229,186)' }}>
           {t('workspace.meet.eyebrow', 'Meet Workspace')}
         </p>
-        <h2 className="mt-2 text-3xl font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
-          {t('workspace.meet.title', 'Welcome to ZMeetings')}
+        <h2 className="mt-3 text-3xl font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+          {t('workspace.meet.title', 'Welcome to Z Meetings')}
         </h2>
-        <p className="mt-2 text-base leading-7" style={{ color: isLight ? '#475569' : '#9ca3af' }}>
+        <p className="mt-4 text-base leading-7" style={{ color: isLight ? '#475569' : '#9ca3af' }}>
           {t('workspace.meet.subtitle', 'Start meetings quickly, join by code, and track your team impact from one place.')}
         </p>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-4">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
           <QuickStartCard
             ctaLabel={creatingMeeting ? t('workspace.meet.quickStart.creating', 'Creating...') : t('workspace.meet.quickStart.cta', 'New meeting')}
             description={t('workspace.meet.quickStart.description', 'Jump in instantly, invite participants, and track live sustainability impact.')}
@@ -450,10 +479,10 @@ function MeetWorkspaceScreenContent() {
           />
         </div>
 
-        <section className="space-y-4">
+        <section className="space-y-5">
           {loading ? (
             <section
-              className="rounded-3xl border p-5"
+              className="rounded-3xl border p-6"
               style={{
                 background: isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.04)',
                 borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -475,7 +504,7 @@ function MeetWorkspaceScreenContent() {
           )}
 
           <section
-            className="rounded-2xl border p-4"
+            className="rounded-2xl border p-5 md:p-6"
             style={{
               background: isLight ? 'rgba(248,250,252,0.9)' : 'rgba(255,255,255,0.03)',
               borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
@@ -504,7 +533,7 @@ function MeetWorkspaceScreenContent() {
                 </button>
               </div>
             ) : selectedMeeting ? (
-              <div className="mt-3 space-y-3">
+              <div className="mt-4 space-y-4">
                 <p className="text-sm font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
                   {selectedMeeting.title}
                 </p>
@@ -523,7 +552,7 @@ function MeetWorkspaceScreenContent() {
             )}
 
             {selectedMeeting?.status !== 'ended' && (canModerateSelectedMeeting || joinMeetingHref) ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-3">
                 {canModerateSelectedMeeting ? (
                   <button
                     type="button"

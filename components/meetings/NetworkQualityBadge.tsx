@@ -54,7 +54,7 @@ export default function NetworkQualityBadge({ compact = false, isLight, labelPre
 
   return (
     <div
-      className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold"
+      className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold"
       style={{
         borderColor: isLight ? 'rgba(15,23,42,0.14)' : 'rgba(255,255,255,0.16)',
         background: isLight ? 'rgba(255,255,255,0.86)' : 'rgba(15,23,42,0.72)',

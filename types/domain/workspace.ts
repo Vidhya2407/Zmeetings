@@ -104,6 +104,7 @@ export interface CalendarEvent {
   title: string;
   startsAt: string;
   endsAt: string;
+  timezone?: string | null;
   ownerUserId: string;
   attendeeUserIds: string[];
   meetingId: string | null;

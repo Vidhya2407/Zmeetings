@@ -125,15 +125,14 @@ function ChatWorkspaceScreenContent() {
     const trimmedBody = composerValue.trim();
     if (!activeThreadId || (!trimmedBody && composerAttachments.length === 0)) return;
 
-    const outgoingBody = trimmedBody || (
-      composerAttachments.length === 1
-        ? t('workspace.chat.attachments.sentOne', 'Sent an attachment')
-        : t('workspace.chat.attachments.sentMany', 'Sent {count} attachments').replace('{count}', `${composerAttachments.length}`)
-    );
     const response = await fetchJsonWithRetry<{ message: ChatMessage }>(`/api/chat/threads/${activeThreadId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senderUserId: SELF_USER_ID, body: outgoingBody }),
+      body: JSON.stringify({
+        senderUserId: SELF_USER_ID,
+        body: trimmedBody,
+        attachments: composerAttachments,
+      }),
     });
     if (response.unauthorized) {
       router.push(`/login?next=${encodeURIComponent('/chat')}`);
@@ -147,10 +146,7 @@ function ChatWorkspaceScreenContent() {
 
     const message = response.data?.message;
     if (message) {
-      upsertMessage(activeThreadId, {
-        ...message,
-        attachments: composerAttachments.length ? composerAttachments : undefined,
-      });
+      upsertMessage(activeThreadId, message);
       setComposerValue('');
       setComposerAttachments([]);
       setChatError(null);
@@ -191,9 +187,12 @@ function ChatWorkspaceScreenContent() {
   }, [activeThreadId, router, setMessages, setThreads, t]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <NetworkQualityBadge isLight={isLight} />
+    <div className="flex min-w-0 flex-col gap-4 pb-4 md:gap-5 md:pb-0 lg:h-[calc(100dvh-8rem)] lg:min-h-0 lg:overflow-hidden">
+      <div className="grid shrink-0 min-w-0 gap-6 lg:grid-cols-[minmax(18rem,0.32fr)_minmax(0,0.68fr)]">
+        <div className="hidden lg:block" />
+        <div className="flex items-center justify-end">
+          <NetworkQualityBadge compact isLight={isLight} />
+        </div>
       </div>
 
       {(chatError || reconnecting) ? (
@@ -224,50 +223,58 @@ function ChatWorkspaceScreenContent() {
         </section>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[0.32fr_0.68fr]">
-      <ThreadList
-        activeThreadId={activeThreadId}
-        isLight={isLight}
-        onSelectThread={setActiveThreadId}
-        threads={threads}
-        title={t('workspace.chat.threadsTitle', 'Threads')}
-      />
-
-      <section
-        className="rounded-3xl border p-4"
-        style={{
-          background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)',
-          borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
-        }}
-      >
-        <div className="border-b pb-3" style={{ borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)' }}>
-          <p className="text-lg font-black" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
-            {activeThread?.title ?? t('workspace.chat.selectConversation', 'Select a conversation')}
-          </p>
-          <p className="text-base" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
-            {t('workspace.chat.subtitle', 'Conversation hub for meeting coordination')}
-          </p>
-        </div>
-
-        <div className="mt-3 h-[58vh] min-h-[360px]">
-          <MessagePane isLight={isLight} messages={activeMessages} selfUserId={SELF_USER_ID} />
-        </div>
-
-        <Composer
-          attachLabel={t('workspace.chat.attachments.attach', 'Attach files, photos, or videos')}
-          attachments={composerAttachments}
-          disabled={!activeThreadId || (!composerValue.trim() && composerAttachments.length === 0)}
+      <div className="grid min-w-0 items-start gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(18rem,0.32fr)_minmax(0,0.68fr)] lg:items-stretch lg:overflow-hidden">
+        <ThreadList
+          activeThreadId={activeThreadId}
           isLight={isLight}
-          onChange={setComposerValue}
-          onFileSelect={handleFileSelect}
-          onRemoveAttachment={handleRemoveAttachment}
-          onSend={handleSend}
-          placeholder={t('workspace.chat.composerPlaceholder', 'Type a message...')}
-          removeAttachmentLabel={t('workspace.chat.attachments.remove', 'Remove attachment')}
-          sendLabel={t('workspace.chat.send', 'Send')}
-          value={composerValue}
+          onSelectThread={setActiveThreadId}
+          panelId="chat-thread-panel"
+          threads={threads}
+          title={t('workspace.chat.threadsTitle', 'Threads')}
         />
-      </section>
+
+        <section
+          aria-labelledby={activeThreadId ? `chat-thread-tab-${activeThreadId}` : undefined}
+          className="min-w-0 overflow-hidden rounded-3xl border p-5 lg:flex lg:min-h-0 lg:flex-col"
+          id="chat-thread-panel"
+          role="tabpanel"
+          style={{
+            background: isLight ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.04)',
+            borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)',
+            boxShadow: isLight ? '0 22px 48px rgba(15,23,42,0.06)' : '0 22px 44px rgba(0,0,0,0.14)',
+          }}
+          tabIndex={0}
+        >
+          <div className="shrink-0 border-b pb-4" style={{ borderColor: isLight ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.08)' }}>
+            <p className="text-[1.05rem] font-black tracking-[-0.02em]" style={{ color: isLight ? '#0f172a' : '#ffffff' }}>
+              {activeThread?.title ?? t('workspace.chat.selectConversation', 'Select a conversation')}
+            </p>
+            <p className="mt-1 text-sm" style={{ color: isLight ? '#64748b' : '#94a3b8' }}>
+              {t('workspace.chat.subtitle', 'Conversation hub for meeting coordination')}
+            </p>
+          </div>
+
+          <div className={`mt-4 lg:min-h-0 lg:flex-1 ${activeThreadId ? 'h-[34vh] min-h-[220px] sm:h-[42vh] sm:min-h-[260px] md:h-[58vh] md:min-h-[360px] lg:h-auto' : 'h-[20vh] min-h-[140px] sm:h-[26vh] sm:min-h-[180px] md:h-[34vh] md:min-h-[240px] lg:h-auto'}`}>
+            <MessagePane isLight={isLight} messages={activeMessages} selfUserId={SELF_USER_ID} />
+          </div>
+
+          <div className="shrink-0">
+            <Composer
+              attachLabel={t('workspace.chat.attachments.attach', 'Attach files, photos, or videos')}
+              attachments={composerAttachments}
+              disabled={!activeThreadId || (!composerValue.trim() && composerAttachments.length === 0)}
+              isLight={isLight}
+              onChange={setComposerValue}
+              onFileSelect={handleFileSelect}
+              onRemoveAttachment={handleRemoveAttachment}
+              onSend={handleSend}
+              placeholder={t('workspace.chat.composerPlaceholder', 'Type a message...')}
+              removeAttachmentLabel={t('workspace.chat.attachments.remove', 'Remove attachment')}
+              sendLabel={t('workspace.chat.send', 'Send')}
+              value={composerValue}
+            />
+          </div>
+        </section>
       </div>
     </div>
   );
