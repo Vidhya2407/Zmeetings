@@ -19,10 +19,15 @@ test-results/
 *.log
 .tmp-*.log
 .tmp-*/
+tmp-*/
+tmp_*/
 .next-stale/
 tmp-*.png
 tmp-*.jpg
 tmp-*.jpeg
+live-page.png
+meet-page.png
+tmp-ui-testing.docx
 
 .DS_Store
 Thumbs.db
